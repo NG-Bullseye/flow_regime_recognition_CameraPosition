@@ -1,16 +1,16 @@
 import os
-from src.model import LeNet
+from model import LeNet
 from tensorflow.keras.optimizers import Adam
 import tensorflow as tf
 import random
 import json
 
-from src.read_and_preprocess_data import get_data_points_list, data_generator
+from read_and_preprocess_data import get_data_points_list, data_generator
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
-NO_EPOCHS = 20
-BATCH_SIZE = 128
+NO_EPOCHS = 2
+BATCH_SIZE = 16
 INIT_LR = 0.001
 SPLIT_RATIO = [0.9, 0.1, 0.0]
 
@@ -65,5 +65,5 @@ history = model.fit(ds_train_batched,
                     )
 
 print(history.history)
-with open('../report.json', 'w', encoding='utf-8') as f:
+with open('./report.json', 'w', encoding='utf-8') as f:
     json.dump(history.history, f, ensure_ascii=False, indent=4)

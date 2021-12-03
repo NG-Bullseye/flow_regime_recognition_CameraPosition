@@ -15,7 +15,7 @@ def get_data_points_list(source_dir):
             if os.path.isfile(filename_metadata):
                 image_file.append(filename_image)
                 metadata_file.append(filename_metadata)
-    #return list(zip(image_file, metadata_file))[:200]
+    return list(zip(image_file, metadata_file))[:200]
     return list(zip(image_file, metadata_file))
 
 
