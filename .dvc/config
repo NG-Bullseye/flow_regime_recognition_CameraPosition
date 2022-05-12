@@ -1,4 +1,0 @@
-[core]
-    remote = myremote
-['remote "myremote"']
-    url = /mnt/0A60B2CB60B2BD2F/dvcstore
