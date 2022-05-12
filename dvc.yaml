@@ -1,0 +1,34 @@
+stages:
+  read_and_preprocessing_data:
+    cmd: python data_import_and_preprocessing/data_preparation.py
+    deps:
+    - data_import_and_preprocessing/data_preparation.py
+    - params.yaml
+    outs:
+    - cache/additional_info.joblib
+    - cache/ds_train.tf
+    - cache/ds_val.tf
+    - cache/ds_test.tf
+    params:
+    - training.no_epochs
+    - training.batch_size
+  train_model:
+    cmd: python training/model_training.py
+    params:
+      - training.loss
+    deps:
+      - cache/additional_info.joblib
+      - training/model_training.py
+      - cache/ds_train.tf
+      - cache/ds_val.tf
+    outs:
+      - training/model/trained_model.h5
+  compose_report:
+    cmd: python report/report.py
+    deps:
+      - report/report.py
+      - training/model/trained_model.h5
+      - cache/ds_test.tf
+    metrics:
+      - metrics.json:
+          cache: false
