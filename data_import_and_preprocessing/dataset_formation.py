@@ -10,6 +10,9 @@ import joblib
 from pathlib import Path
 
 
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
+
 class DataPoint:
     def __init__(self, datapoint_id, path_to_data, path_to_metadata):
         self.datapoint_id = datapoint_id
@@ -78,6 +81,7 @@ class LabelExtractor:
 class DataSetCreator:
     def __init__(self, data_parser: DataParser, data_extractor, label_extractor, no_repeats=1):
         self.data_points = data_parser.data_points
+        self.data_points = random.sample(self.data_points, len(self.data_points))
         self.data_extractor = data_extractor
         self.label_extractor = label_extractor
         self.no_repeats = no_repeats
@@ -116,40 +120,3 @@ class DataSetCreator:
                             tf.TensorSpec(shape=self.label_signature_output, dtype=tf.float32))
 
         return tf.data.Dataset.from_generator(lambda: self._data_generator(), output_signature=output_signature)
-
-
-if __name__ == '__main__':
-    with open('params.yaml', 'r') as stream:
-        params = yaml.safe_load(stream)
-    no_epochs = params['training']['no_epochs']
-    batch_size = params['training']['batch_size']
-
-    data_dir = '/mnt/0A60B2CB60B2BD2F/Datasets/bioreactor_flow_regimes/02_data'
-    data_parser = DataParser(data_dir)
-    image_data_extractor = ImageDataExtractor((64, 64, 1))
-    label_extractor = LabelExtractor(no_classes=3)
-    dataset = DataSetCreator(data_parser, image_data_extractor, label_extractor, no_repeats=no_epochs)
-    no_points = 5000  # len(dataset)
-    no_points_train = int(no_points * 0.8)
-    no_points_val = int(no_points * 0.1)
-
-    dataset_train = dataset.take(no_points=no_points_train)
-    dataset_val = dataset.take(starting_point=no_points_train + 1, no_points=no_points_val)
-    dataset_test = dataset.take(starting_point=no_points_train + no_points_val + 2,
-                                no_points=no_points - no_points_train - no_points_val)
-
-    addit_info = {'data_shape': dataset_train.data_signature_output,
-                  'label_shape': dataset_train.label_signature_output,
-                  'no_points': no_points,
-                  'no_points_train': no_points_train,
-                  'no_points_val': no_points_val}
-
-    joblib.dump(addit_info, 'cache/additional_info.joblib')
-
-    tf_dataset_train = dataset_train.cast_tf_dataset().batch(batch_size)
-    tf_dataset_val = dataset_val.cast_tf_dataset().batch(batch_size)
-    tf_dataset_test = dataset_test.cast_tf_dataset().batch(batch_size)
-
-    tf.data.experimental.save(tf_dataset_train, 'cache/ds_train.tf')
-    tf.data.experimental.save(tf_dataset_val, 'cache/ds_val.tf')
-    tf.data.experimental.save(tf_dataset_test, 'cache/ds_test.tf')

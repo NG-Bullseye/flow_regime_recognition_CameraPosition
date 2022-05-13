@@ -48,14 +48,17 @@ def combine_image_and_heatmap(image, heatmap, alpha=0.4):
 
     # Use RGB values of the colormap
     jet_colors = jet(np.arange(256))[:, :3]
-    jet_heatmap = jet_colors[heatmap*255]
+    jet_colors[0:30] = 0
+
+    heatmap = heatmap*255
+    jet_heatmap = jet_colors[heatmap.astype(int)]
 
     # Create an image with RGB colorized heatmap
     jet_heatmap = tf.keras.preprocessing.image.array_to_img(jet_heatmap)
     jet_heatmap = jet_heatmap.resize((image.shape[1], image.shape[0]))
-    jet_heatmap = tf.keras.preprocessing.image.img_to_array(jet_heatmap)
+    jet_heatmap = tf.keras.preprocessing.image.img_to_array(jet_heatmap)/255
 
     # Superimpose the heatmap on original image
-    superimposed_img = jet_heatmap * alpha + image
+    superimposed_img = alpha * jet_heatmap + (1-alpha) * image
 
     return superimposed_img

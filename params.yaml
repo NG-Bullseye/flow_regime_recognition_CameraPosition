@@ -1,4 +1,4 @@
 training:
-  no_epochs: 1
-  batch_size: 128
+  no_epochs: 10
+  batch_size: 512
   loss: categorical_crossentropy

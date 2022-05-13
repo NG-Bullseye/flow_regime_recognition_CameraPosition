@@ -1,34 +1,32 @@
 stages:
-  read_and_preprocessing_data:
-    cmd: python data_import_and_preprocessing/data_preparation.py
+  batch_data_preprocessing:
+    cmd: python data_import_and_preprocessing/batch_data_preprocessing.py
     deps:
-    - data_import_and_preprocessing/data_preparation.py
-    - params.yaml
+    - data_import_and_preprocessing/batch_data_preprocessing.py
     outs:
-    - cache/additional_info.joblib
-    - cache/ds_train.tf
-    - cache/ds_val.tf
-    - cache/ds_test.tf
-    params:
-    - training.no_epochs
-    - training.batch_size
+    - data/preprocessed
   train_model:
     cmd: python training/model_training.py
+    deps:
+      - data/preprocessed
+      - data_import_and_preprocessing/dataset_formation.py
+      - training/model_training.py
+      - models/lenet5.py
     params:
       - training.loss
-    deps:
-      - cache/additional_info.joblib
-      - training/model_training.py
-      - cache/ds_train.tf
-      - cache/ds_val.tf
+      - training.no_epochs
+      - training.batch_size
     outs:
       - training/model/trained_model.h5
+      - cache/ds_test.tf
+      - cache/additional_info.yaml
   compose_report:
     cmd: python report/report.py
     deps:
       - report/report.py
       - training/model/trained_model.h5
       - cache/ds_test.tf
+      - cache/additional_info.yaml
     metrics:
       - metrics.json:
           cache: false
