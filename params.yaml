@@ -1,4 +1,73 @@
+path_dataset: /mnt/0A60B2CB60B2BD2F/Projects/flow_regime_recognition_CameraPosition/datasets_preprocessed/Front200
+#path_dataset: /mnt/0A60B2CB60B2BD2F/Projects/flow_regime_recognition_CameraPosition/datasets_preprocessed/Right200
+#path_dataset: /mnt/0A60B2CB60B2BD2F/Projects/flow_regime_recognition_CameraPosition/datasets_preprocessed/Front200
+path_SdCardPicture: /media/lwecke/01D86604CD911790/SA_Wecke/raw_data/RightAngled50_raw
+#path_SdCardPicture: /media/lwecke/01D86604CD911790/SA_Wecke/raw_data/Frontal200FinalNew
+#path_SdCardPicture: /media/lwecke/01D86604CD911790/SA_Wecke/raw_data/RightDataFinal200
+#path_SdCardPicture: /media/lwecke/01D86604CD911790/SA_Wecke/raw_data/RightDataSetFinal80
+
+path_for_loading_model_for_eval_only: /mnt/0A60B2CB60B2BD2F/Projects/flow_regime_recognition_CameraPosition/datasets_preprocessed/Right200/2022-11-07 21:13:52.831721 Final 3/cnn_acc94.0_auc1.0.h5
+path_logs: /mnt/0A60B2CB60B2BD2F/Projects/flow_regime_recognition_CameraPosition/logs
+
+#activate to create a pipeline. Functions will be executed in the listed sequence.
+run_copyingDatasetFromUsbStick: false    #datapath must point to dest dir. source dir is path_SdCardPicture
+run_preprocessing:              false
+run_trimmingDataset:            false #ERROR timestamps are wrong. Deletes all inbetween periods. Nothing stays
+run_labeling:                   false #Balances Dataset and sets labels
+run_tuner:                      false
+run_training:                   true
+run_evaluation_only:            false
+run_saliencemapCreation:        false
+
+preprocessing:
+  filename_ExpermientTimestamps: ExpermientTimestamps.json
+  filename_LabelTimestamps: LabelTimestamps.json
+  picture_width: 56  #this value also is used for auto naming the preprocessed_images56 directory. Dont ONLY change hight. Allways use square values like 30x30
+  picture_hight: 56
+  no_classes: 4
+  label_name: flow_regime
+  file_type_picture: png
+  autoplay_training: false # Depreciated. automaticly starts training after preprocessing.
+
+callbacks: #count for tuning and training
+  earlystop: true
+  lr_schedule:
+    enabled: false
+    lr_max : 0.1
+    lr_min : 0.0001
+    lr_ramp_ep : 36
+    lr_sus_ep : 40
+    lr_decay : 0.3
 training:
-  no_epochs: 3
-  batch_size: 512
+  comment: "Reduced Front"
+  model_baseline: True #vanila LeNet5 without regularization and without dropout
+  hp: #only work when model_baseline = False
+    batch_size: 512
+    dropout: 0.0
+    regularization: 0.0
+  no_epochs: 50
   loss: categorical_crossentropy
+  learningrate: 0.001
+  no_points_train_ratioInPercent: 0.6 #in percent
+  no_points_val_ratioInPercent: 0.2 #training data = 1 - train - val
+  dataset_test_no_repeats: 2
+
+tuning:
+  hp: #not in use
+    batch_size: 50
+    dropout: 0.2
+    regularization: 0.001
+  no_epochs: 50
+  loss: categorical_crossentropy
+  learningrate: 0.001
+  no_points_train_ratioInPercent: 0.5 #choose small fraction of dataset for faster tuning.
+  no_points_val_ratioInPercent: 0.3
+  dataset_test_no_repeats: 2
+globalValues:
+  datashape: null
+  labelshape: null
+datashape: !!python/tuple  #Change if image resolution changes. Used by Hypermodel. Cant be used as parameter due to inheritance. Dirty workaround though.  Use PrettySaveLoader to load this yaml.
+- 56
+- 56
+- 1
+labelshape: 4 #dont change. Used by Hypermodel. Cant be used as parameter due to inheritance. Dirty workaround though.

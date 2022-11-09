@@ -1,1 +1,1 @@
-# flow_regime_recognition
+# Studienarbeit LEONARD-RICCARDO HANS WECKE
