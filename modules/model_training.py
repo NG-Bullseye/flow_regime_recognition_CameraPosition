@@ -43,12 +43,12 @@ class Training:
     #METHA PARAMETER WHICH CANT BE PLACED IN PARAMS.YAML
     p = os.path.abspath('../training')
     sys.path.insert(1, p)
-    from data_import_and_preprocessing.dataset_formation import DataParser, ImageDataExtractor, LabelExtractor, \
+    from modules.data_import_and_preprocessing.dataset_formation import DataParser, ImageDataExtractor, LabelExtractor, \
       DataSetCreator
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-    self.physical_devices = tf.config.list_physical_devices('GPU')
-    tf.config.experimental.set_memory_growth(self.physical_devices[0], True)
+    self.physical_devices = tf.config.list_physical_devices('CPU')
+    #tf.config.experimental.set_memory_growth(self.physical_devices[0], True)
 
     class CustomImageDataExtractor(ImageDataExtractor):
       def get_data(self, data_point):
@@ -82,11 +82,11 @@ class Training:
       self.params = yaml.load(stream,Loader=PrettySafeLoader)
     start_time = datetime.now()
     if DATAPATH != "":
-      path_preprocessed_images = DATAPATH + "/preprocessed_images" + str(self.params['preprocessing']['picture_width'])
+      path_preprocessed_images = DATAPATH
       self.path = DATAPATH+"/"+str(start_time)
     else:
-      path_preprocessed_images = self.params['path_dataset'] + "/preprocessed_images" + str(self.params['preprocessing']['picture_width'])
-      self.path = self.params['path_dataset'] + "/" + str(start_time)
+      path_preprocessed_images = self.params['dest_path_preprocessed']
+      self.path = self.params['output_path_dataset_training']+"/output_training"
     os.mkdir(self.path)
     os.chdir(self.path)
     print(str(self.params))
@@ -588,7 +588,6 @@ class Training:
       senden("Tuning Finished! "    + "ACC: " + str(self.results[1]) + "\n Tuning_Laufzeit: "      + str(self.tuning_laufzeit)+" Confusion_matrix:"+ str(self.conf_mat)+" reg: "+str(self.best_regularization)+" batch:"+str(self.best_batchsize)+" drop:"+str(self.best_dropout_rate))
     else:
       senden("Training Finished! "  + "ACC: " + str(self.results[1]) + "\n Trainings_Laufzeit: " + str(self.trainings_laufzeit)+" Confusion_matrix:"+ self.parseConfMat(self.conf_mat)+"\n AUC: "+str(self.auc) +"\n Path: "+self.path+ "\n Tensorboard: "+link)
-
 
 
 def runTuner(DATAPATH,EPOCH,BATCHSIZE):

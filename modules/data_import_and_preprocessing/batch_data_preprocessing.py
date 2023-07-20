@@ -36,7 +36,7 @@ def run():
     picture_width = params['preprocessing']['picture_width']
     picture_hight = params['preprocessing']['picture_hight']
     no_classes = params['preprocessing']['no_classes']
-    data_dir = params['path_SdCardPicture']
+    data_dir = params['path_dataset']
     print("DATA SOURCE PATH: "+data_dir)
 
     file_type_picture = params['preprocessing']['file_type_picture']
@@ -59,7 +59,7 @@ def run():
             self.data_points = data_parser.data_points
             self.data_extractor = data_extractor
             self.label_extractor = label_extractor
-            self.save_path = params['path_dataset']+"/preprocessed_images"+str(params['preprocessing']['picture_width'])
+            self.save_path = params['dest_path_preprocessed']+"/preprocessed_images"+str(params['preprocessing']['picture_width'])
 
         def run_processing(self, file_type_picture):
             pbar = tqdm(desc='Data preprocessing', total=len(self.data_points), leave=True)

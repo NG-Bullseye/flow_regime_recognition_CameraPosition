@@ -76,8 +76,7 @@ class LabelExtractor:
         PrettySafeLoader.add_constructor(
           u'tag:yaml.org,2002:python/tuple',
           PrettySafeLoader.construct_python_tuple)
-        if os.getcwd() != "/mnt/0A60B2CB60B2BD2F/Projects/flow_regime_recognition_CameraPosition":
-          print("ERROR: Wrong directory: " + os.getcwd())
+        print("Current directory: " + os.getcwd())
         with open('./params.yaml', 'r') as stream:
           params = yaml.load(stream, Loader=PrettySafeLoader)
         self.label_name = params['preprocessing']['label_name']

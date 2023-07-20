@@ -1,21 +1,23 @@
-path_dataset: /mnt/0A60B2CB60B2BD2F/Projects/flow_regime_recognition_CameraPosition/datasets_preprocessed/Front200
+path_dataset: /home/lwecke/Datensätze/Datensatz_v1_50p_3reg/Datensatz_v1_50p_3reg/dataset_2023-07-18-exp01
+dest_path_preprocessed: /home/lwecke/Datensätze/Datensatz_v1_50p_3reg/Datensatz_v1_50p_3reg/yaw_0.918367326259613
+output_path_dataset_training: /home/lwecke/Datensätze/Datensatz_v1_50p_3reg
 #path_dataset: /mnt/0A60B2CB60B2BD2F/Projects/flow_regime_recognition_CameraPosition/datasets_preprocessed/Right200
 #path_dataset: /mnt/0A60B2CB60B2BD2F/Projects/flow_regime_recognition_CameraPosition/datasets_preprocessed/Front200
-path_SdCardPicture: /media/lwecke/01D86604CD911790/SA_Wecke/raw_data/RightAngled50_raw
+path_SdCardPicture: /media/lwecke/B278E38678E347A5
 #path_SdCardPicture: /media/lwecke/01D86604CD911790/SA_Wecke/raw_data/Frontal200FinalNew
 #path_SdCardPicture: /media/lwecke/01D86604CD911790/SA_Wecke/raw_data/RightDataFinal200
 #path_SdCardPicture: /media/lwecke/01D86604CD911790/SA_Wecke/raw_data/RightDataSetFinal80
 
-path_for_loading_model_for_eval_only: /mnt/0A60B2CB60B2BD2F/Projects/flow_regime_recognition_CameraPosition/datasets_preprocessed/Right200/2022-11-07 21:13:52.831721 Final 3/cnn_acc94.0_auc1.0.h5
-path_logs: /mnt/0A60B2CB60B2BD2F/Projects/flow_regime_recognition_CameraPosition/logs
+path_for_loading_model_for_eval_only: /home/lwecke/PycharmProjects/flow_regime_recognition_CameraPosition/models/cnn_kroeger.h5
+path_logs: /home/lwecke/PycharmProjects/flow_regime_recognition_CameraPosition/logs
 
 #activate to create a pipeline. Functions will be executed in the listed sequence.
 run_copyingDatasetFromUsbStick: false    #datapath must point to dest dir. source dir is path_SdCardPicture
 run_preprocessing:              false
 run_trimmingDataset:            false #ERROR timestamps are wrong. Deletes all inbetween periods. Nothing stays
-run_labeling:                   false #Balances Dataset and sets labels
+run_labeling_balancing:         false #Balances Dataset and sets labels
 run_tuner:                      false
-run_training:                   true
+run_training:                   true #works when set alone
 run_evaluation_only:            false
 run_saliencemapCreation:        false
 
@@ -24,7 +26,7 @@ preprocessing:
   filename_LabelTimestamps: LabelTimestamps.json
   picture_width: 56  #this value also is used for auto naming the preprocessed_images56 directory. Dont ONLY change hight. Allways use square values like 30x30
   picture_hight: 56
-  no_classes: 4
+  no_classes: 3
   label_name: flow_regime
   file_type_picture: png
   autoplay_training: false # Depreciated. automaticly starts training after preprocessing.

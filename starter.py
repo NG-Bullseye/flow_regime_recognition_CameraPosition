@@ -1,22 +1,27 @@
-from silence_tensorflow import silence_tensorflow
-silence_tensorflow()
+#from silence_tensorflow import silence_tensorflow
+#silence_tensorflow()
 import os
 import yaml
 import sys
 import tensorflow as tf
 
-from modules.data_import_and_preprocessing import copyPasteBigDataFromUsbStick, labelPicturesWithLabelTimestamps, \
-  batch_data_preprocessing, deletePicturesOutsideOfRecordIntervall
+from modules.data_import_and_preprocessing import copyPasteBigDataFromUsbStick, batch_data_preprocessing, label_balance_PicturesByRpmAndGasflow
 from modules import model_training
 
 if __name__ == '__main__':
+  print(tf.__version__)
+
+  if tf.test.gpu_device_name():
+    print('Default GPU Device: {}'.format(tf.test.gpu_device_name()))
+  else:
+    print("Please install GPU version of TF")
 
   p = os.path.abspath('.')
   sys.path.insert(1, p)
   os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-  physical_devices = tf.config.list_physical_devices('GPU')
-  tf.config.experimental.set_memory_growth(physical_devices[0], True)
+  physical_devices = tf.config.list_physical_devices('CPU')
+  #tf.config.experimental.set_memory_growth(physical_devices[0], True)
   print("RUNNING STARTER WITH")
   class PrettySafeLoader(yaml.SafeLoader):
     def construct_python_tuple(self, node):
@@ -50,8 +55,7 @@ if __name__ == '__main__':
 
 
   run_copyingDatasetFromUsbStick  =   params['run_copyingDatasetFromUsbStick']
-  run_trimmingDataset             =   params['run_trimmingDataset']
-  run_labeling                    =   params['run_labeling']
+  run_labeling_balancing          =   params['run_labeling_balancing']
   run_preprocessing               =   params['run_preprocessing']
   run_training                    =   params['run_training']
   run_saliencemapCreation         =   params['run_saliencemapCreation']
@@ -61,8 +65,7 @@ if __name__ == '__main__':
   evaluation_only_modelName = params['path_for_loading_model_for_eval_only']
 
   print('run_copyingDatasetFromUsbStick '+str(run_copyingDatasetFromUsbStick                       ))
-  print('run_trimmingDataset            '+str(run_trimmingDataset                      ))
-  print('run_labeling                   '+str(run_labeling                     ) )
+  print('run_labeling                   '+str(run_labeling_balancing                     ) )
   print('run_preprocessing              '+str(run_preprocessing                        ))
   print('run_training                   '+str(run_training                     )  )
   print('run_evaluation_only            '+str(run_evaluation_only                     )  )
@@ -72,19 +75,13 @@ if __name__ == '__main__':
       copyPasteBigDataFromUsbStick.run()
       print('DONE run_copyingDatasetFromUsbStick ' )
 
+  if run_labeling_balancing:
+      label_balance_PicturesByRpmAndGasflow.run()
+      print('DONE run_labeling ' )
 
   if run_preprocessing:
       batch_data_preprocessing.run()
       print('DONE batch_data_preprocessing ' )
-
-  if run_trimmingDataset:
-      deletePicturesOutsideOfRecordIntervall.run()
-      print('DONE run_trimmingDataset ' )
-
-
-  if run_labeling:
-      labelPicturesWithLabelTimestamps.run()
-      print('DONE run_labeling ' )
 
   if run_tuner:
       model_training.runTuner(DATAPATH, EPOCH, BATCHSIZE)
@@ -97,9 +94,5 @@ if __name__ == '__main__':
   if run_evaluation_only:
       model_training.runEvaluation(evaluation_only_modelName)
       print('DONE run_evaluation_only')
-
-  if run_saliencemapCreation:
-      labelPicturesWithLabelTimestamps.run()
-      print('DONE run_saliencemapCreation')
   print("Starter has finished all jobs.")
 
