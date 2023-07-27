@@ -6,7 +6,7 @@
       <excludeFolder url="file://$MODULE_DIR$/env2" />
       <excludeFolder url="file://$MODULE_DIR$/finalEnv" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.8 (flow_regime_recognition_CameraPosition)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.7 (flow_regime_recognition_CameraPosition)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
 </module>
