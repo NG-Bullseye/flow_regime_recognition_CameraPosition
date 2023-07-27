@@ -133,8 +133,15 @@ class DataSetCreator:
     def get_data_point_generator(self):
         return self._data_generator()
 
-    def cast_tf_dataset(self):
-        output_signature = (tf.TensorSpec(shape=self.data_signature_output, dtype=tf.float32),
-                            tf.TensorSpec(shape=self.label_signature_output, dtype=tf.float32))
+    #def cast_tf_dataset(self):
+    #    output_signature = (tf.TensorSpec(shape=self.data_signature_output, dtype=tf.float32),
+    #                        tf.TensorSpec(shape=self.label_signature_output, dtype=tf.float32))
 
-        return tf.data.Dataset.from_generator(lambda: self._data_generator(), output_signature=output_signature)
+    #    return tf.data.Dataset.from_generator(lambda: self._data_generator(), output_signature=output_signature)
+
+    def cast_tf_dataset(self):
+        output_types = (tf.float32, tf.float32)
+        output_shapes = (self.data_signature_output, self.label_signature_output)
+
+        return tf.data.Dataset.from_generator(lambda: self._data_generator(), output_types=output_types,
+                                              output_shapes=output_shapes)

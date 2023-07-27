@@ -1,16 +1,11 @@
-import random
-import shutil
 import threading
-import time
 
 from silence_tensorflow import silence_tensorflow
 silence_tensorflow()
 from datetime import datetime
-from modules.notificationBot import senden
+from modules.Utility.notificationBot import senden
 import tensorflow as tf
 import os
-import sys
-import cv2
 import yaml
 import pandas as pd
 import numpy as np
@@ -18,7 +13,6 @@ from models.lenet5 import LeNet_baseline
 from models.lenet5 import LeNet_drop_reg
 from models.lenet5 import LeNet_Hypermodel
 from models.lenet5 import LeNet_reduced
-from tensorboard.plugins.hparams import api as hp
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import LabelBinarizer, label_binarize
 from sklearn.metrics import roc_curve, auc, roc_auc_score

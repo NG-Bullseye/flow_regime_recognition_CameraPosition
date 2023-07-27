@@ -1,15 +1,15 @@
-
-from silence_tensorflow import silence_tensorflow
+import random
+import threading
 import time
 
-from modules.Utility.CustomImageDataExtractor import CustomImageDataExtractor
-from modules.Utility.PrettySafeLoader import PrettySafeLoader
-
+from silence_tensorflow import silence_tensorflow
 silence_tensorflow()
 from datetime import datetime
 from modules.Utility.notificationBot import senden
 import tensorflow as tf
+import os
 import sys
+import cv2
 import yaml
 import pandas as pd
 import numpy as np
@@ -17,20 +17,11 @@ from models.lenet5 import LeNet_baseline
 from models.lenet5 import LeNet_drop_reg
 from models.lenet5 import LeNet_Hypermodel
 from models.lenet5 import LeNet_reduced
-import os
-import subprocess
-import re
-import queue
-import threading
-
+from tensorboard.plugins.hparams import api as hp
 
 class Training:
-
-
   def __init__(self,DATAPATH,EPOCH,BATCHSIZE):
-    print("Tensorflow Version: "+tf.__version__)
     self.auc = None
-    self.path_preprocessed_images = None
     self.path_exp = None
     self.evaluate_only = False
     self.tuning = False
@@ -46,24 +37,44 @@ class Training:
     self.trainings_laufzeit=0
     self.tuning_laufzeit = 0
     self.my_hypermodel = LeNet_Hypermodel()
-    self.output_queue = queue.Queue()
 
     ######################################################
     #METHA PARAMETER WHICH CANT BE PLACED IN PARAMS.YAML
     p = os.path.abspath('../training')
     sys.path.insert(1, p)
-    from modules.data_import_and_preprocessing.dataset_formation import DataParser, LabelExtractor, \
+    from modules.data_import_and_preprocessing.dataset_formation import DataParser, ImageDataExtractor, LabelExtractor, \
       DataSetCreator
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
     self.physical_devices = tf.config.list_physical_devices('CPU')
     #tf.config.experimental.set_memory_growth(self.physical_devices[0], True)
 
+    class CustomImageDataExtractor(ImageDataExtractor):
+      def get_data(self, data_point):
+        filename = data_point.path_to_data
+        img = cv2.imread(filename)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        self.rotate_image(img, random.choice([0,90,180,270]))  # TODO: check if pictures actually rotate
+        img_preprocessed = self.preprocess_image(img)
+        return np.expand_dims(img_preprocessed, axis=-1)
+
+      def rotate_image(self,image, angle):
+        image_center = tuple(np.array(image.shape[1::-1]) / 2)
+        rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
+        result = cv2.warpAffine(image, rot_mat, image.shape[1::-1], flags=cv2.INTER_LINEAR)
+        return result
+
+
     abspath = os.path.abspath(__file__)
     dname = os.path.dirname(abspath)
     os.chdir(dname)
     os.chdir('../')
     import yaml
+
+    class PrettySafeLoader(yaml.SafeLoader):
+
+      def construct_python_tuple(self, node):
+        return tuple(self.construct_sequence(node))
     PrettySafeLoader.add_constructor(
       u'tag:yaml.org,2002:python/tuple',
       PrettySafeLoader.construct_python_tuple)
@@ -71,17 +82,11 @@ class Training:
       self.params = yaml.load(stream,Loader=PrettySafeLoader)
     start_time = datetime.now()
     if DATAPATH != "":
-      self.path_preprocessed_images = DATAPATH
-      start_time = datetime.now().strftime('%Y%m%d_%H%M%S')
-      new_dir = os.path.join(DATAPATH, start_time)
-      # Create the new directory
-      os.makedirs(new_dir, exist_ok=True)
-      # Store the path to the new directory
-      self.path = new_dir
-      os.makedirs(self.path, exist_ok=True)
+      path_preprocessed_images = DATAPATH
+      self.path = DATAPATH+"/"+str(start_time)
     else:
-      self.path_preprocessed_images = self.params['input_training_dataset_path']
-      self.path = self.params['output_training_path']+f"/output_training{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+      path_preprocessed_images = self.params['dest_path_preprocessed']
+      self.path = self.params['output_path_dataset_training']+f"/output_training{datetime.now().strftime('%Y-%m-%d_%H-%M')}"
     if not os.path.exists(self.path):
       os.mkdir(self.path)
     os.chdir(self.path)
@@ -142,7 +147,7 @@ class Training:
     self.dataset_test_no_repeats = self.params['training']['dataset_test_no_repeats']
 
     #Fetch DATASET
-    data_parser         = DataParser(self.path_preprocessed_images)
+    data_parser         = DataParser(path_preprocessed_images)
     image_data_extractor = CustomImageDataExtractor((picture_width, picture_hight, 1))
     label_extractor     = LabelExtractor(no_classes=no_classes) #anzahl der classen
     self.dataset        = DataSetCreator(data_parser, image_data_extractor, label_extractor, no_repeats=self.no_epochs)
@@ -200,57 +205,94 @@ class Training:
     else:
       print("LEARNINGRATE SCHEDULE: OFF")
 
-  def start_tensorboard(self):
-    # Start TensorBoard as a subprocess
-    self.proc = subprocess.Popen(
-      [
-        "tensorboard", "dev", "upload",
-        "--logdir", "./tensorboard",
-        "--name",
-        f"Batchsize={self.params['training']['hp']['batch_size']} Dropout={self.params['training']['hp']['dropout']} Reg={self.params['training']['hp']['regularization']} Lr={self.params['training']['learningrate']}",
-        "--description", f"Experiment path: {self.path}"
-      ],
-      stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
 
-    # Use regex to match TensorBoard url pattern
-    url_pattern = re.compile(r'https?://tensorboard.dev/experiment/.*')
+  def hp_optimization(self):
+    self.time_start = datetime.now()
+    session_num = 0
+    HP_BATCHSIZE        = hp.HParam('batch', hp.Discrete([1024]))
+    HP_DROPOUT          = hp.HParam('drop', hp.Discrete([0.0,0.2,0.6]))
+    HP_REGULAIZATION    = hp.HParam('reg', hp.Discrete([0.0,0.005,0.009]))
 
-    # Run until the TensorBoard process finishes
-    for line in iter(self.proc.stdout.readline, ''):
-      # The real code does filtering here
-      print(line.strip())
-      url_match = url_pattern.search(line)
-      if url_match:
-        self.tensorboard_url = url_match.group(0)
-        # Put URL in queue to signal main thread
-        self.output_queue.put(self.tensorboard_url)
+    hyperparameter = []
+    hyperparameter.append(HP_REGULAIZATION),
+    hyperparameter.append(HP_DROPOUT),
+    hyperparameter.append(HP_BATCHSIZE)
+    self.my_hypermodel.declare_hyperparameters(hyperparameter)
+    self.best_acc = 0
+    firstIteration=True
+    for batchsize in HP_BATCHSIZE.domain.values:
+      self.tf_dataset_val = self.dataset_val.cast_tf_dataset().batch(batchsize).prefetch(1)
+      for regularization in HP_REGULAIZATION.domain.values:
+        for dropout_rate in HP_DROPOUT.domain.values:
+          if  dropout_rate==0.6 and regularization!=0: #skipps extreme combinations that dont make sense.
+            continue
+          if dropout_rate != 0 and regularization ==0.009: #skipps extreme combinations that dont make sense.
+            continue
+          hparams = {
+            HP_REGULAIZATION: regularization,
+            HP_DROPOUT: dropout_rate,
+            HP_BATCHSIZE: batchsize,
+          }
 
-  def check_queue(self):
-    while True:
-      try:
-        url = self.output_queue.get(timeout=5)
-        print(f"Received TensorBoard URL: {url}")
-      except queue.Empty:
-        print("Waiting for TensorBoard URL...")
-        continue
-      else:
-        # We've got the URL, no need to check anymore
-        break
+          run_name = "run-%d" % session_num
+          print('--- Starting trial: %s' % run_name)
+          #print("HIGHSCORE: "+"Acc="+str(self.best_acc)+" Batchsize="+str(self.best_batchsize)+" Dropout="+str(self.best_dropout_rate)+" Reg="+str(self.best_regularization)+" Name= "+str(self.best_exp_name))
+          self.path_exp=self.path + "/hparam_tuning/experiment-"+ datetime.now().strftime("%Y%m%d-%H%M%S")
 
-  def start_threads(self):
-    self.thread_tensorboard = threading.Thread(target=self.start_tensorboard)
-    self.thread_tensorboard.start()
+          #run
+          with tf.summary.create_file_writer(self.path_exp).as_default():
+            hp.hparams(hparams)  # record the values used in this trial
+          print("Current: " + "Batchsize=" + str(hparams.get(self.my_hypermodel.getBatchsize()))
+                + " Dropout=" + str(hparams.get(self.my_hypermodel.getDropout())) + " Reg=" + str(hparams.get(self.my_hypermodel.getRegularization())))
+          self.hyperModel_built = self.my_hypermodel.build(hparams)
+          self.lr_start = self.params['training']['learningrate']
+          self.lr_max     = self.params['callbacks']['lr_schedule']['lr_max']
+          self.lr_min     = self.params['callbacks']['lr_schedule']['lr_min']
+          self.lr_ramp_ep = self.params['callbacks']['lr_schedule']['lr_ramp_ep']
+          self.lr_sus_ep  = self.params['callbacks']['lr_schedule']['lr_sus_ep']
+          self.lr_decay   = self.params['callbacks']['lr_schedule']['lr_decay']
+          self.path_checkpoint = self.path + f"/checkpoints/{str(datetime.now())}"
+          self.hyperModel_built.compile(loss=self.loss, optimizer=self.optimizer,
+                                   metrics=[tf.keras.metrics.CategoricalAccuracy()])
 
-    self.thread_check_queue = threading.Thread(target=self.check_queue)
-    self.thread_check_queue.start()
+          self.tb_callback = tf.keras.callbacks.TensorBoard(log_dir=self.path_exp,
+                                                            histogram_freq=1,
+                                                            write_graph=True,
+                                                            write_images=True,
+                                                            update_freq='epoch',
+                                                            profile_batch=2,
+                                                            embeddings_freq=1)
+          if firstIteration:
+            self.thread_tensorboard = threading.Thread(target=self.start_tensorboard_tuning)
+            self.thread_tensorboard.start()
+            time.sleep(5)
+            firstIteration = False
+          self.history = self.hyperModel_built.fit(self.tf_dataset_train,
+                                                   epochs=int(self.no_epochs),
+                                                   batch_size=batchsize,
+                                                   steps_per_epoch=self.no_points_train // batchsize,
+                                                   validation_data=self.tf_dataset_val,
+                                                   validation_steps=self.no_points_val // batchsize,
+                                                   callbacks=[self.tb_callback,
+                                                              hp.KerasCallback(self.path_exp, hparams),
+                                                              self.callback_early_stopping])  # Run with 1 epoch to speed things up for demo purposes
 
-  def stop_tensorboard(self):
-    if self.proc:
-      self.proc.terminate()
-    if self.thread_tensorboard.is_alive():
-      self.thread_tensorboard.join()
-    if self.thread_check_queue.is_alive():
-      self.thread_check_queue.join()
+          #if (accuracy>self.best_acc):
+          #  self.best_acc = accuracy
+          #  model_best=self.hyperModel_built
+          #  self.best_regularization = regularization
+          #  self.best_dropout_rate   = dropout_rate
+          #  self.best_batchsize      = batchsize
+          #  self.best_exp_name=self.path_exp
+          session_num += 1
+
+    #self.model_built = model_best
+    #td =datetime.now() - self.time_start
+    #days = td.days
+    #hours, remainder = divmod(td.seconds, 3600)
+    #minutes, seconds = divmod(remainder, 60)
+    #self.trainings_laufzeit  = f"Days:{days}, Hours:{hours}, Minutes:{minutes}"
+
   def train(self):
     print("Training Dataset element specification:")
     for features, labels in self.tf_dataset_train.take(1):
@@ -269,13 +311,12 @@ class Training:
     self.tb_callback = tf.keras.callbacks.TensorBoard(log_dir=self.path + "/tensorboard",
                                                       histogram_freq=1,
                                                       write_graph=True,
-                                                      write_images=False,
+                                                      write_images=True,
                                                       update_freq='epoch',
                                                       profile_batch=2,
                                                       embeddings_freq=1)
-    # Initialize an empty Queue to pass messages from the output processing thread to the main thread
-    self.start_threads()
-
+    self.thread_tensorboard = threading.Thread(target=self.start_tensorboard_training)
+    self.thread_tensorboard.start()
     self.time_start = datetime.now()
     # Custom Scheduler Function
     self.model_built = self.model.build(self.params['datashape'],self.params['labelshape'],dropout_rate= self.dropout_rate,regularization= self.regularization)
@@ -288,8 +329,6 @@ class Training:
     print("regulaization: " +str(self.regularization))
     print("no_points_train: " +str(self.no_points_train ))
     print("no_points_val: "   +str(self.no_points_val))
-    print("Output Path "+self.path)
-    print("Input Data Path "+self.path_preprocessed_images)
 
     self.path_checkpoint = self.path + f"/checkpoints/B{str(self.batch_size).split('.',1)[0]}_D{str(self.dropout_rate).split('.',1)[0]}_R{str(self.regularization).split('.',1)[0]}"
     model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
@@ -302,7 +341,6 @@ class Training:
     callbacks=self.callback_toogled
     callbacks.append(self.tb_callback)
     callbacks.append(model_checkpoint_callback)
-    tf.config.run_functions_eagerly(True)
     self.history = self.model_built.fit(self.tf_dataset_train,
                                         epochs=self.no_epochs,
                                         batch_size=self.batch_size,
@@ -317,12 +355,7 @@ class Training:
     minutes, seconds = divmod(remainder, 60)
     self.trainings_laufzeit  = f"Days:{days}, Hours:{hours}, Minutes:{minutes}"
     print("Saving test Data Split tf_dataset_test..")
-    tf.data.experimental.save(self.tf_dataset_test, self.path +'/tf_dataset_test.tf')
-    ds_element_spec = self.tf_dataset_test.element_spec
-    import pickle
-    # Save the ds_element_spec to a file using pickle for gradcam generation later on
-    with open(self.path + '/element_spec.pkl', 'wb') as file:
-      pickle.dump(ds_element_spec, file)
+    tf.data.Dataset.save(self.tf_dataset_test, self.path +'/tf_dataset_test.tf')
     self.model_built.load_weights(self.path_checkpoint)
     if self.params['callbacks']['earlystop']:
       print("EARLY STOPPED AT: " + str(self.callback_early_stopping.stopped_epoch))
@@ -340,7 +373,12 @@ class Training:
       lr = (self.lr_max - self.lr_min) * self.lr_decay ** (epoch - self.lr_ramp_ep - self.lr_sus_ep) + self.lr_min
     print("Updated Learningrate: " + str(lr))
     return lr
-
+  def start_tensorboard_training(self):
+    print(f"starting tensorboard in dir: {os.getcwd()}/tensorboard")
+    print(os.system(f"tensorboard dev upload \
+    --logdir ./tensorboard \
+    --name 'Batchsize={self.params['training']['hp']['batch_size']} Dropout={self.params['training']['hp']['dropout']} Reg={self.params['training']['hp']['regularization']} Lr={self.params['training']['learningrate']}' \
+    --description 'Experiment path: {self.path}'"))
   def start_tensorboard_tuning(self):
     os.chdir(self.path)
     print(f"starting tensorboard in dir: {os.getcwd()}/hparam_tuning")
@@ -354,6 +392,23 @@ class Training:
     self.model_built=tf.keras.models.load_model(f"{self.path}/{path_model}")
     self.evaluate_only=True
 
+  def getTensorboardLinkFromLogFile(self):
+    tb_link = "error"
+    try:
+      with open(
+        f"{self.params['path_logs']}/terminalOutput{os.environ['LOGFILE']}.log") as log_fh:
+        for line in log_fh:
+          if line.__contains__("https"):  # you might want a better check here
+            tb_link = "https" + line.split("https", 2)[1]
+            break
+      print(tb_link)
+
+    except:
+      print(f"ERROR IN PARSING OR LOADING LOG FILE IN {self.params['path_logs']}/terminalOutput")
+      print(
+        "ENVIROMENT VARIABLE LOGFILE must be set. e.g. 4. referes to log file and is used to run different runconfigurations in parallel while still writing to log files.")
+      print("MAXMIUM LOGFILE NUMBER IS 5.")
+    return tb_link
   def evaluate(self):
     #MODEL PREDICTS
     print("#################### EVALUTATION ####################")
@@ -383,7 +438,7 @@ class Training:
     from sklearn.preprocessing import LabelBinarizer
     from sklearn.metrics import roc_curve, auc, roc_auc_score
 
-    target = ['Dispersed', 'Loaded', 'Flooded']
+    target = ['Dispersed', 'Transition', 'Loaded', 'Flooded']
     # set plot figure size
     fig, c_ax = plt.subplots(1, 1, figsize=(12, 8))
 
@@ -412,8 +467,8 @@ class Training:
     fpr = dict()
     tpr = dict()
     roc_auc = dict()
-    y = label_binarize(y_test, classes=["Dispersed", "Loaded","Flooded"])
-    n_classes=self.params["labelshape"]
+    y = label_binarize(y_test, classes=["Dispersed", "Transition", "Loaded","Flooded"])
+    n_classes=4
     print("y_test "+str(y_test)+" y_pred "+str(y_pred))
     for (i, classname) in enumerate(target):
       fpr[i], tpr[i], thresholds = roc_curve(y_test[:, i], y_pred[:, i])
@@ -497,7 +552,7 @@ class Training:
     self.model_built.save(self.path+'/cnn_acc'+str(round(self.results[1]*100,0))+"_auc"+str(round(self.auc, 1))+'.h5')
     plt.show()
   def report(self):
-    print("##############################  \n ########## REPORT ########## \n ##############################")
+    print("########## REPORT ##########")
     os.chdir(self.path)
     # convert the history.history dict to a pandas DataFrame:
     hist_df = pd.DataFrame(self.history.history)
@@ -506,15 +561,6 @@ class Training:
     with open(hist_json_file, mode='w') as f:
       hist_df.to_json(f)
     print("RESULTS: "+str(self.results))
-    # Check if self.tensorboard_url has been set
-    time.sleep(10)  # 10 seconds, adjust as needed
-    if hasattr(self, 'tensorboard_url'):
-      # Now it's safe to use self.tensorboard_url in your main thread
-      print("Tensorboard URL: "+self.tensorboard_url)
-    else:
-      # Handle case where self.tensorboard_url is not yet available
-      print("TensorBoard URL not yet available.")
-
     training_info = {
       'tensorboard_url': self.tensorboard_url,
       'val_loss': self.results[0],
@@ -541,16 +587,22 @@ class Training:
       yaml.dump(training_info, outfile, default_flow_style=False, sort_keys=False)
     with open(self.path+'/params_for_this_training.yaml', 'w') as outfile:
         yaml.dump(self.params, outfile, default_flow_style=False, sort_keys=False)
+    link=self.getTensorboardLinkFromLogFile()
     try:
       with open(self.path+'/tensorboard_link.txt', 'w') as f:
-        f.write(self.tensorboard_url)
+        f.write(link)
     except FileNotFoundError:
       print(f"The {self.path} directory does not exist")
     if self.tuning:
       senden("Tuning Finished! "    + "ACC: " + str(self.results[1]) + "\n Tuning_Laufzeit: "      + str(self.tuning_laufzeit)+" Confusion_matrix:"+ str(self.conf_mat)+" reg: "+str(self.best_regularization)+" batch:"+str(self.best_batchsize)+" drop:"+str(self.best_dropout_rate))
     else:
-      senden("Training Finished! "  + "ACC: " + str(self.results[1]) + "\n Trainings_Laufzeit: " + str(self.trainings_laufzeit)+" Confusion_matrix:"+ self.parseConfMat(self.conf_mat)+"\n AUC: "+str(self.auc) +"\n Path: "+self.path+ "\n Tensorboard: "+self.tensorboard_url)
-    self.stop_tensorboard()
+      senden("Training Finished! "  + "ACC: " + str(self.results[1]) + "\n Trainings_Laufzeit: " + str(self.trainings_laufzeit)+" Confusion_matrix:"+ self.parseConfMat(self.conf_mat)+"\n AUC: "+str(self.auc) +"\n Path: "+self.path+ "\n Tensorboard: "+link)
+
+
+def runTuner(DATAPATH,EPOCH,BATCHSIZE):
+  print("########### TUNING ###########")
+  training = Training(DATAPATH, EPOCH,BATCHSIZE)
+  training.hp_optimization()
 
 def runTraining(DATAPATH, EPOCH, BATCHSIZE):
   print("########### TRAINING ###########")

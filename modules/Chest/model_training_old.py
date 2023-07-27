@@ -1,15 +1,16 @@
-
+import random
 from silence_tensorflow import silence_tensorflow
+import threading
+import queue
 import time
-
-from modules.Utility.CustomImageDataExtractor import CustomImageDataExtractor
-from modules.Utility.PrettySafeLoader import PrettySafeLoader
 
 silence_tensorflow()
 from datetime import datetime
 from modules.Utility.notificationBot import senden
 import tensorflow as tf
+import os
 import sys
+import cv2
 import yaml
 import pandas as pd
 import numpy as np
@@ -17,18 +18,12 @@ from models.lenet5 import LeNet_baseline
 from models.lenet5 import LeNet_drop_reg
 from models.lenet5 import LeNet_Hypermodel
 from models.lenet5 import LeNet_reduced
-import os
 import subprocess
-import re
-import queue
-import threading
+
 
 
 class Training:
-
-
   def __init__(self,DATAPATH,EPOCH,BATCHSIZE):
-    print("Tensorflow Version: "+tf.__version__)
     self.auc = None
     self.path_preprocessed_images = None
     self.path_exp = None
@@ -46,24 +41,44 @@ class Training:
     self.trainings_laufzeit=0
     self.tuning_laufzeit = 0
     self.my_hypermodel = LeNet_Hypermodel()
-    self.output_queue = queue.Queue()
 
     ######################################################
     #METHA PARAMETER WHICH CANT BE PLACED IN PARAMS.YAML
     p = os.path.abspath('../training')
     sys.path.insert(1, p)
-    from modules.data_import_and_preprocessing.dataset_formation import DataParser, LabelExtractor, \
+    from modules.data_import_and_preprocessing.dataset_formation import DataParser, ImageDataExtractor, LabelExtractor, \
       DataSetCreator
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
     self.physical_devices = tf.config.list_physical_devices('CPU')
     #tf.config.experimental.set_memory_growth(self.physical_devices[0], True)
 
+    class CustomImageDataExtractor(ImageDataExtractor):
+      def get_data(self, data_point):
+        filename = data_point.path_to_data
+        img = cv2.imread(filename)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        self.rotate_image(img, random.choice([0,90,180,270]))  # TODO: check if pictures actually rotate
+        img_preprocessed = self.preprocess_image(img)
+        return np.expand_dims(img_preprocessed, axis=-1)
+
+      def rotate_image(self,image, angle):
+        image_center = tuple(np.array(image.shape[1::-1]) / 2)
+        rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
+        result = cv2.warpAffine(image, rot_mat, image.shape[1::-1], flags=cv2.INTER_LINEAR)
+        return result
+
+
     abspath = os.path.abspath(__file__)
     dname = os.path.dirname(abspath)
     os.chdir(dname)
     os.chdir('../')
     import yaml
+
+    class PrettySafeLoader(yaml.SafeLoader):
+
+      def construct_python_tuple(self, node):
+        return tuple(self.construct_sequence(node))
     PrettySafeLoader.add_constructor(
       u'tag:yaml.org,2002:python/tuple',
       PrettySafeLoader.construct_python_tuple)
@@ -72,18 +87,11 @@ class Training:
     start_time = datetime.now()
     if DATAPATH != "":
       self.path_preprocessed_images = DATAPATH
-      start_time = datetime.now().strftime('%Y%m%d_%H%M%S')
-      new_dir = os.path.join(DATAPATH, start_time)
-      # Create the new directory
-      os.makedirs(new_dir, exist_ok=True)
-      # Store the path to the new directory
-      self.path = new_dir
-      os.makedirs(self.path, exist_ok=True)
+      self.path = DATAPATH+"/"+str(start_time)
     else:
       self.path_preprocessed_images = self.params['input_training_dataset_path']
       self.path = self.params['output_training_path']+f"/output_training{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
-    if not os.path.exists(self.path):
-      os.mkdir(self.path)
+    os.mkdir(self.path)
     os.chdir(self.path)
     print(str(self.params))
     if not self.params["training"]["model_baseline"]:
@@ -201,27 +209,28 @@ class Training:
       print("LEARNINGRATE SCHEDULE: OFF")
 
   def start_tensorboard(self):
+    import subprocess
+    import re
+
     # Start TensorBoard as a subprocess
-    self.proc = subprocess.Popen(
-      [
-        "tensorboard", "dev", "upload",
-        "--logdir", "./tensorboard",
-        "--name",
-        f"Batchsize={self.params['training']['hp']['batch_size']} Dropout={self.params['training']['hp']['dropout']} Reg={self.params['training']['hp']['regularization']} Lr={self.params['training']['learningrate']}",
-        "--description", f"Experiment path: {self.path}"
-      ],
-      stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+    proc = subprocess.Popen(['tensorboard', '--logdir', self.path + "/tensorboard", '--bind_all'],
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
     # Use regex to match TensorBoard url pattern
     url_pattern = re.compile(r'https?://tensorboard.dev/experiment/.*')
 
     # Run until the TensorBoard process finishes
-    for line in iter(self.proc.stdout.readline, ''):
+    while True:
+      line = proc.stdout.readline()
+      if not line:
+        break
       # The real code does filtering here
-      print(line.strip())
-      url_match = url_pattern.search(line)
+      decoded_line = line.decode('UTF-8').strip()
+      print(decoded_line)
+      url_match = url_pattern.search(decoded_line)
       if url_match:
         self.tensorboard_url = url_match.group(0)
+        print(f'TensorBoard URL: {self.tensorboard_url}')
         # Put URL in queue to signal main thread
         self.output_queue.put(self.tensorboard_url)
 
@@ -237,20 +246,18 @@ class Training:
         # We've got the URL, no need to check anymore
         break
 
-  def start_threads(self):
-    self.thread_tensorboard = threading.Thread(target=self.start_tensorboard)
-    self.thread_tensorboard.start()
+  def print_TensorboardURL(self):
+    print(f"starting tensorboard in dir: {os.getcwd()}/tensorboard")
+    result = subprocess.run([
+      "tensorboard", "dev", "upload",
+      "--logdir", "./tensorboard",
+      "--name",
+      f"Batchsize={self.params['training']['hp']['batch_size']} Dropout={self.params['training']['hp']['dropout']} Reg={self.params['training']['hp']['regularization']} Lr={self.params['training']['learningrate']}",
+      "--description", f"Experiment path: {self.path}"
+    ], capture_output=True, text=True)
+    self.tensorboard_url=result.stdout
+    print("JOOO "+result.stdout)
 
-    self.thread_check_queue = threading.Thread(target=self.check_queue)
-    self.thread_check_queue.start()
-
-  def stop_tensorboard(self):
-    if self.proc:
-      self.proc.terminate()
-    if self.thread_tensorboard.is_alive():
-      self.thread_tensorboard.join()
-    if self.thread_check_queue.is_alive():
-      self.thread_check_queue.join()
   def train(self):
     print("Training Dataset element specification:")
     for features, labels in self.tf_dataset_train.take(1):
@@ -274,7 +281,19 @@ class Training:
                                                       profile_batch=2,
                                                       embeddings_freq=1)
     # Initialize an empty Queue to pass messages from the output processing thread to the main thread
-    self.start_threads()
+    catchBoardUrl=False
+    if catchBoardUrl:
+      self.output_queue = queue.Queue()
+      self.tensorboard_url = ""  # This will store the URL when it's available
+
+      self.thread_tensorboard = threading.Thread(target=self.start_tensorboard)
+      self.thread_tensorboard.start()
+
+      self.thread_check_queue = threading.Thread(target=self.check_queue)
+      self.thread_check_queue.start()
+    if not catchBoardUrl:
+      self.thread_tensorboard = threading.Thread(target=self.print_TensorboardURL())
+      self.thread_tensorboard.start()
 
     self.time_start = datetime.now()
     # Custom Scheduler Function
@@ -317,15 +336,11 @@ class Training:
     minutes, seconds = divmod(remainder, 60)
     self.trainings_laufzeit  = f"Days:{days}, Hours:{hours}, Minutes:{minutes}"
     print("Saving test Data Split tf_dataset_test..")
-    tf.data.experimental.save(self.tf_dataset_test, self.path +'/tf_dataset_test.tf')
-    ds_element_spec = self.tf_dataset_test.element_spec
-    import pickle
-    # Save the ds_element_spec to a file using pickle for gradcam generation later on
-    with open(self.path + '/element_spec.pkl', 'wb') as file:
-      pickle.dump(ds_element_spec, file)
+    #tf.data.Dataset.save(self.tf_dataset_test, self.path +'/tf_dataset_test.tf')
     self.model_built.load_weights(self.path_checkpoint)
     if self.params['callbacks']['earlystop']:
       print("EARLY STOPPED AT: " + str(self.callback_early_stopping.stopped_epoch))
+
 
   def parseConfMat(self, matrix):
     return str(str(str(matrix).split('(',1)[1]).split(',',1)[0])
@@ -354,6 +369,23 @@ class Training:
     self.model_built=tf.keras.models.load_model(f"{self.path}/{path_model}")
     self.evaluate_only=True
 
+  def getTensorboardLinkFromLogFile(self):
+    tb_link = "error"
+    try:
+      with open(
+        f"{self.params['path_logs']}/terminalOutput{os.environ['LOGFILE']}.log") as log_fh:
+        for line in log_fh:
+          if line.__contains__("https"):  # you might want a better check here
+            tb_link = "https" + line.split("https", 2)[1]
+            break
+      print(tb_link)
+
+    except:
+      print(f"ERROR IN PARSING OR LOADING LOG FILE IN {self.params['path_logs']}/terminalOutput")
+      print(
+        "ENVIROMENT VARIABLE LOGFILE must be set. e.g. 4. referes to log file and is used to run different runconfigurations in parallel while still writing to log files.")
+      print("MAXMIUM LOGFILE NUMBER IS 5.")
+    return tb_link
   def evaluate(self):
     #MODEL PREDICTS
     print("#################### EVALUTATION ####################")
@@ -541,16 +573,22 @@ class Training:
       yaml.dump(training_info, outfile, default_flow_style=False, sort_keys=False)
     with open(self.path+'/params_for_this_training.yaml', 'w') as outfile:
         yaml.dump(self.params, outfile, default_flow_style=False, sort_keys=False)
+    link=self.getTensorboardLinkFromLogFile()
     try:
       with open(self.path+'/tensorboard_link.txt', 'w') as f:
-        f.write(self.tensorboard_url)
+        f.write(link)
     except FileNotFoundError:
       print(f"The {self.path} directory does not exist")
     if self.tuning:
       senden("Tuning Finished! "    + "ACC: " + str(self.results[1]) + "\n Tuning_Laufzeit: "      + str(self.tuning_laufzeit)+" Confusion_matrix:"+ str(self.conf_mat)+" reg: "+str(self.best_regularization)+" batch:"+str(self.best_batchsize)+" drop:"+str(self.best_dropout_rate))
     else:
       senden("Training Finished! "  + "ACC: " + str(self.results[1]) + "\n Trainings_Laufzeit: " + str(self.trainings_laufzeit)+" Confusion_matrix:"+ self.parseConfMat(self.conf_mat)+"\n AUC: "+str(self.auc) +"\n Path: "+self.path+ "\n Tensorboard: "+self.tensorboard_url)
-    self.stop_tensorboard()
+
+
+def runTuner(DATAPATH,EPOCH,BATCHSIZE):
+  print("########### TUNING ###########")
+  training = Training(DATAPATH, EPOCH,BATCHSIZE)
+  training.hp_optimization()
 
 def runTraining(DATAPATH, EPOCH, BATCHSIZE):
   print("########### TRAINING ###########")

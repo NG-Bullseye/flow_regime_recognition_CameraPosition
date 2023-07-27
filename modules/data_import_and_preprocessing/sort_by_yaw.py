@@ -38,18 +38,22 @@ def sort_files_by_yaw(path: str):
 
         # Copy json file
         shutil.copy(file_path, dest_dir)
+        print(f"Copied JSON file: {filename} to {dest_dir}")
 
         # Copy corresponding png file
         png_file = filename.replace(".json", "_camera_frame.png")
         png_path = os.path.join(path, png_file)
         if os.path.exists(png_path):
             shutil.copy(png_path, dest_dir)
+            print(f"Copied PNG file: {png_file} to {dest_dir}")
+        else:
+            print(f"WARNING: PNG file not found: {png_path}")
+
 
 def main():
     with open('../../params.yaml', 'r') as stream:
         params = yaml.load(stream, Loader=PrettySafeLoader)
-    path = params['dest_path_preprocessed']+"/preprocessed_images"+str(params['preprocessing']['picture_width'])
-
+    path = params['output_preprocessed_path']
     print("Sorting files by yaw...")
     sort_files_by_yaw(path)
 

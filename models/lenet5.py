@@ -39,20 +39,24 @@ class LeNet_baseline:
     # return the constructed network architecture
     return model
 
+
 class LeNet_reduced:
   @staticmethod
-  def build(data_shape, label_shape,dropout_rate,regularization):
+  def build(data_shape, label_shape, dropout_rate, regularization):
     # initialize the model
     model = Sequential()
 
     # first set of CONV => RELU => POOL layers
     model.add(Conv2D(10, (2, 2), padding="same", input_shape=data_shape))
-    #model.add(Activation("tanh"))
     model.add(MaxPooling2D(pool_size=(4, 4), strides=(4, 4)))
-    # first set of CONV => RELU => POOL layers
-    model.add(Conv2D(20, (2, 2), padding="same", input_shape=data_shape))
-    #model.add(Activation("tanh"))
+
+    # second set of CONV => RELU => POOL layers
+    model.add(Conv2D(20, (2, 2), padding="same"))
     model.add(MaxPooling2D(pool_size=(5, 5), strides=(5, 5)))
+
+    # add a Flatten layer
+    model.add(Flatten())
+
     # softmax classifier
     model.add(Dense(label_shape))
     model.add(Activation("softmax"))

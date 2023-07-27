@@ -36,8 +36,8 @@ def run():
     picture_width = params['preprocessing']['picture_width']
     picture_hight = params['preprocessing']['picture_hight']
     no_classes = params['preprocessing']['no_classes']
-    data_dir = params['path_dataset']
-    print("DATA SOURCE PATH: "+data_dir)
+    data_dir = params['input_preprocessed_path']
+    print("input_preprocessed_path: "+data_dir)
 
     file_type_picture = params['preprocessing']['file_type_picture']
 
@@ -59,20 +59,20 @@ def run():
             self.data_points = data_parser.data_points
             self.data_extractor = data_extractor
             self.label_extractor = label_extractor
-            self.save_path = params['dest_path_preprocessed']+"/preprocessed_images"+str(params['preprocessing']['picture_width'])
+            self.output_path = params['output_preprocessed_path']
 
         def run_processing(self, file_type_picture):
             pbar = tqdm(desc='Data preprocessing', total=len(self.data_points), leave=True)
             for data_point in self.data_points:
-                os.makedirs(self.save_path, exist_ok=True)
+                os.makedirs(self.output_path, exist_ok=True)
                 data = self.data_extractor.get_data(data_point)
                 metadata = self.label_extractor.get_data(data_point)
                 filename = data_point.datapoint_id
-                fullname_img = os.path.join(self.save_path, filename + '.' + file_type_picture)
+                fullname_img = os.path.join(self.output_path, filename + '.' + file_type_picture)
                 cv2.imwrite(fullname_img, data)
                 jsonFileName_metadata_WITHOUT_CAMERA_FRAME=filename.split('_',3)[0]
 
-                fullname_metadata = os.path.join(self.save_path, jsonFileName_metadata_WITHOUT_CAMERA_FRAME + '.json')
+                fullname_metadata = os.path.join(self.output_path, jsonFileName_metadata_WITHOUT_CAMERA_FRAME + '.json')
                 with open(fullname_metadata, 'w') as outfile:
                     json.dump(metadata, outfile, indent=4)
                 pbar.update(1)

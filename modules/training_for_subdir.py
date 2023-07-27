@@ -28,7 +28,6 @@ class Training:
 
 
   def __init__(self,DATAPATH,EPOCH,BATCHSIZE):
-    print("Tensorflow Version: "+tf.__version__)
     self.auc = None
     self.path_preprocessed_images = None
     self.path_exp = None
@@ -317,12 +316,7 @@ class Training:
     minutes, seconds = divmod(remainder, 60)
     self.trainings_laufzeit  = f"Days:{days}, Hours:{hours}, Minutes:{minutes}"
     print("Saving test Data Split tf_dataset_test..")
-    tf.data.experimental.save(self.tf_dataset_test, self.path +'/tf_dataset_test.tf')
-    ds_element_spec = self.tf_dataset_test.element_spec
-    import pickle
-    # Save the ds_element_spec to a file using pickle for gradcam generation later on
-    with open(self.path + '/element_spec.pkl', 'wb') as file:
-      pickle.dump(ds_element_spec, file)
+    #tf.data.Dataset.save(self.tf_dataset_test, self.path +'/tf_dataset_test.tf')
     self.model_built.load_weights(self.path_checkpoint)
     if self.params['callbacks']['earlystop']:
       print("EARLY STOPPED AT: " + str(self.callback_early_stopping.stopped_epoch))
