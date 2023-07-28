@@ -1,10 +1,6 @@
 import csv
 import os
-from datetime import datetime
-
-
-def main(results,output_dir="/home/lwecke/PycharmProjects/flow_regime_recognition_CameraPosition/modules"):
-    filename = f"results{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv"
+def save(mapping,output_dir,filename):
     # Create directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
 
@@ -15,5 +11,5 @@ def main(results,output_dir="/home/lwecke/PycharmProjects/flow_regime_recognitio
     with open(file_path, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(['Key', 'Value'])
-        for key, value in results.items():
+        for key, value in mapping.items():
             writer.writerow([key, value])

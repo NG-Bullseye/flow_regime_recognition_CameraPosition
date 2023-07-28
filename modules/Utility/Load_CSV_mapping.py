@@ -1,13 +1,8 @@
 import csv
 import os
-def main():
-
-    output_dir = "/home/lwecke/PycharmProjects/flow_regime_recognition_CameraPosition/modules"  # Replace with your directory
-    filename = "0123results.csv"
-
+def load(path,filename):
     # Full path to the file
-    file_path = os.path.join(output_dir, filename)
-
+    file_path = os.path.join(path, filename)
     # Reading from csv file
     results_loaded = {}
     with open(file_path, 'r') as csvfile:
@@ -15,8 +10,8 @@ def main():
         next(reader)  # Skip the header
         for row in reader:
             results_loaded[row[0]] = float(row[1])
-
-    print(results_loaded)
+    print("results_loaded: \n"+str(results_loaded))
+    return(results_loaded)
 
 if __name__ == '__main__':
-    main()
+    load()

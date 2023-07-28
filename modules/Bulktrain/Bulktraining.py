@@ -1,14 +1,14 @@
 import os
-from modules import model_training
+import training as model_training
 from modules.Utility.PrettySafeLoader import PrettySafeLoader
+from modules import Utility
 
+def bulktrain(input_bulktraining_image_root_path,output_bulktraining_path):
+    if not os.path.isdir(input_bulktraining_image_root_path):
+        raise ValueError(f"{input_bulktraining_image_root_path} is not a valid directory.")
 
-def list_subdirectories(directory):
-    if not os.path.isdir(directory):
-        raise ValueError(f"{directory} is not a valid directory.")
-
-    subdirectories = [os.path.join(directory, d) for d in os.listdir(directory) if
-                      os.path.isdir(os.path.join(directory, d))]
+    subdirectories = [os.path.join(input_bulktraining_image_root_path, d) for d in os.listdir(input_bulktraining_image_root_path) if
+                      os.path.isdir(os.path.join(input_bulktraining_image_root_path, d))]
 
     results = {}  # Dictionary to store validation accuracy for each yaw value
 
@@ -16,7 +16,7 @@ def list_subdirectories(directory):
         yaw_value = os.path.basename(subdirectory)
         print(f"Training for {subdirectory}...")
         # Initialize and train the model
-        trainer = model_training.Training(subdirectory,1,54)  # Or however you initialize your training object
+        trainer = model_training.Training(subdirectory,yaw_value+output_bulktraining_path,1,54)  # Or however you initialize your training object
         trainer.train()
         trainer.evaluate()
         trainer.report()
@@ -54,11 +54,17 @@ def main():
     # Example usage:
     with open('./params.yaml', 'r') as stream:
         params = yaml.load(stream, Loader=PrettySafeLoader)
-    bulk_training=    params['output_training_path']
-    directory_path = "/home/lwecke/Datensätze/Datensatz_v1_50p_3reg/Datensatz_v1_50p_3reg/yaw"
-    yaw_to_accuracy = list_subdirectories(directory_path)
+    output_bulktraining_path=    params['output_bulktraining_path']
+    input_bulktraining_image_root_path = params['input_bulktraining_image_root_path']
+    yaw_to_accuracy = bulktrain(input_bulktraining_image_root_path,output_bulktraining_path)
     # print yaw_to_accuracy to check the validation accuracy for each yaw value
     print(yaw_to_accuracy)
+    Utility.Save_mapping_to_csv.save(output_bulktraining_path)
+    # directory containing all yaw directories
+    yaw_dir = "/home/lwecke/Datensätze/Datensatz_v1_50p_3reg/preprocessed_sorded_by_yaw"
+    # destination directory
+    dst_dir = "/home/lwecke/Datensätze/Datensatz_v1_50p_3reg/Bulktraining_Outputs/Bulktraining_2023_07_24/yaw"
+    Utility.copy_trainingdata_out_of_yaw_image_folders.run(yaw_dir,dst_dir)
 
 if __name__ == '__main__':
     main()
