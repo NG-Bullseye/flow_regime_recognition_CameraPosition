@@ -1,0 +1,7 @@
+{
+  "name": "your_project_name",
+  "version": "1.0.0",
+  "scripts": {
+    "start-db": "pg_ctl -D /usr/lib/postgresql/12/bin start"
+  }
+}

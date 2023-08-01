@@ -22,8 +22,32 @@ in jupiternotebook files
 ##Custom Baysian optimization for simulation of camera positioning
 use mapping of yaw and acc for simulation of camera movement
 Benchmarkes CBO to Gridsearch, Randomsearch, BO and other optimization
+## Postgres DB
+# setup 
+sudo apt-get update
+sudo apt-get install postgresql postgresql-contrib
+which psql
+export PATH=$PATH:pathto/pgsql/bin
+close consol maybe to take effect
 
+sudo -u postgres psql
 
+[sudo] Passwort für lwecke: 
+psql (12.15 (Ubuntu 12.15-0ubuntu0.20.04.1))
+Type "help" for help.
+
+postgres=# \password
+Enter new password for user "postgres": 
+Enter it again: 
+postgres=# \q (quit the consol)
+postgres=# \l (list the databases)
+
+dann verbinden mit database setup
+# connect 
+Host: localhost
+Port: 5432 (default PostgreSQL port)
+User: postgres
+Password: 
 ## Execution
 
 1 Preprocessing the images
