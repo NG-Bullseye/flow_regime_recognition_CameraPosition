@@ -19,18 +19,11 @@ def run():
     print("Terminal: cd " + os.getcwd())
     os.chdir('../../')
     print("Terminal: cd " + os.getcwd())
+
     class PrettySafeLoader(yaml.SafeLoader):
       def construct_python_tuple(self, node):
         return tuple(self.construct_sequence(node))
-    PrettySafeLoader.add_constructor(
-      u'tag:yaml.org,2002:python/tuple',
-      PrettySafeLoader.construct_python_tuple)
-    class PrettySafeLoader(yaml.SafeLoader):
-      def construct_python_tuple(self, node):
-        return tuple(self.construct_sequence(node))
-    PrettySafeLoader.add_constructor(
-      u'tag:yaml.org,2002:python/tuple',
-      PrettySafeLoader.construct_python_tuple)
+
     with open('./params.yaml', 'r') as stream:
       params = yaml.load(stream,Loader=PrettySafeLoader)
     picture_width = params['preprocessing']['picture_width']

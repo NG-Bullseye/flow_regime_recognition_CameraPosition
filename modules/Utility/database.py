@@ -22,13 +22,12 @@ class Sim_data_db:
         upsert_sql = f"""
             INSERT INTO data ({columns})
             VALUES ({placeholders})
-            ON CONFLICT (yaw)
-            DO UPDATE SET {updates}
+            ON CONFLICT (image_path, gradcam_mean_path, model_path, yaw)
+            DO NOTHING
         """
 
         self.c.execute(upsert_sql, list(kwargs.values()))
         self.conn.commit()
-
 
     def get(self, value_column, key_column, key_value):
         """Retrieve a value from the database based on a key.

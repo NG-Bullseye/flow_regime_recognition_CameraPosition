@@ -11,6 +11,42 @@ from tensorflow.keras import regularizers
 import keras_tuner as kt
 
 
+
+
+class Lenet5_kroger:
+  @staticmethod
+  def build(data_shape,label_shape,dropout_rate,regularization):
+    # initialize the model
+    model = Sequential()
+
+    # first CONV => RELU => POOL layer
+    model.add(Conv2D(48, (3, 3), padding="same", activation='relu', input_shape=data_shape)) # Assuming 3 color channels
+    model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
+
+    # second CONV => RELU => POOL layer
+    model.add(Conv2D(16, (3, 3), padding="same", activation='relu'))
+    model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
+
+    # third CONV => RELU => POOL layer
+    model.add(Conv2D(64, (3, 3), padding="same", activation='relu'))
+    model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
+
+    # fourth CONV => RELU => POOL layer
+    model.add(Conv2D(128, (3, 3), padding="same", activation='relu'))
+    model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
+
+    # Flatten layer
+    model.add(Flatten())
+
+    # Fully connected layer
+    model.add(Dense(512, activation='relu'))
+
+    # softmax classifier
+    model.add(Dense(label_shape, activation='softmax'))
+
+    # return the constructed network architecture
+    return model
+
 class LeNet_baseline:
   @staticmethod
   def build(data_shape, label_shape,dropout_rate,regularization):
@@ -92,6 +128,7 @@ class LeNet_drop_reg:
     return model
 
 
+
 # dropout layer
 # l2 regularization
 # hyperparameter optimisation: batchsize, dropout rate, regulariation faktor
@@ -123,10 +160,6 @@ class LeNet_Hypermodel(kt.HyperModel):
     class PrettySafeLoader(yaml.SafeLoader):
       def construct_python_tuple(self, node):
         return tuple(self.construct_sequence(node))
-
-    PrettySafeLoader.add_constructor(
-      u'tag:yaml.org,2002:python/tuple',
-      PrettySafeLoader.construct_python_tuple)
     with open('params.yaml', 'r') as stream:
       params = yaml.load(stream, Loader=PrettySafeLoader)
     datashape = params['datashape']

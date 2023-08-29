@@ -1,4 +1,4 @@
-from modules.data_import_and_preprocessing.dataset_formation import ImageDataExtractor
+from modules.Preprocessing.dataset_formation import ImageDataExtractor
 import cv2
 import random
 import numpy as np

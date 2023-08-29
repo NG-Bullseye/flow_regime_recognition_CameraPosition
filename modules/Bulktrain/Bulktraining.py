@@ -11,18 +11,16 @@ def bulktrain(input_bulktraining_image_root_path,output_bulktraining_path):
                       os.path.isdir(os.path.join(input_bulktraining_image_root_path, d))]
 
     results = {}  # Dictionary to store validation accuracy for each yaw value
-
     for subdirectory in subdirectories:
         yaw_value = os.path.basename(subdirectory)
         print(f"Training for {subdirectory}...")
         # Initialize and train the model
-        trainer = model_training.Training(subdirectory,yaw_value+output_bulktraining_path,1,54)  # Or however you initialize your training object
+        trainer = model_training.Training(subdirectory,output_bulktraining_path+"/"+yaw_value)  # Or however you initialize your training object
         trainer.train()
         trainer.evaluate()
         trainer.report()
         # Store the validation accuracy for this yaw value
         results[yaw_value] = trainer.results[1]  # Assuming trainer.results[1] is validation accuracy
-
     return results
 
 
@@ -34,7 +32,7 @@ def main():
     PrettySafeLoader.add_constructor(
         u'tag:yaml.org,2002:python/tuple',
         PrettySafeLoader.construct_python_tuple)
-    with open('./params.yaml', 'r') as stream:
+    with open('../../params.yaml', 'r') as stream:
         params = yaml.load(stream, Loader=PrettySafeLoader)
 
     # Get the current time
@@ -59,12 +57,12 @@ def main():
     yaw_to_accuracy = bulktrain(input_bulktraining_image_root_path,output_bulktraining_path)
     # print yaw_to_accuracy to check the validation accuracy for each yaw value
     print(yaw_to_accuracy)
-    Utility.Save_mapping_to_csv.save(output_bulktraining_path)
     # directory containing all yaw directories
     yaw_dir = "/home/lwecke/Datensätze/Datensatz_v1_50p_3reg/preprocessed_sorded_by_yaw"
     # destination directory
-    dst_dir = "/home/lwecke/Datensätze/Datensatz_v1_50p_3reg/Bulktraining_Outputs/Bulktraining_2023_07_24/yaw"
-    Utility.copy_trainingdata_out_of_yaw_image_folders.run(yaw_dir,dst_dir)
+    dst_dir = "/home/lwecke/Datensätze/Datensatz_v1_50p_3reg/Bulktraining_Outputs/Bulktraining_2023_08_08/yaw"
+    #Utility.copy_trainingdata_out_of_yaw_image_folders.run(yaw_dir,dst_dir)
+
 
 if __name__ == '__main__':
     main()

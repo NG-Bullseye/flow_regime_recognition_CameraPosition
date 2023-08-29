@@ -12,9 +12,6 @@ def run():
       def construct_python_tuple(self, node):
         return tuple(self.construct_sequence(node))
 
-    PrettySafeLoader.add_constructor(
-      u'tag:yaml.org,2002:python/tuple',
-      PrettySafeLoader.construct_python_tuple)
     with open('params.yaml', 'r') as stream:
       params = yaml.load(stream, Loader=PrettySafeLoader)
     # path to source directory

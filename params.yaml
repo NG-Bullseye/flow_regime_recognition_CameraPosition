@@ -4,24 +4,17 @@ input_preprocessed_path: /home/lwecke/Datensätze/Datensatz_v1_50p_3reg/Testdate
 output_preprocessed_path: /home/lwecke/Datensätze/Datensatz_v1_50p_3reg/Testdatensatz_2p_2reg/preprocessed_images56 #This foulder is created and images are put into it
 
 input_training_dataset_path: /home/lwecke/Datensätze/Datensatz_v1_50p_3reg/Datensatz_v1_50p_3reg/preprocessed_images56
-output_training_path: /home/lwecke/Datensätze/Datensatz_v1_50p_3reg/Trainings_Outputs #new foulder with timstamp will be here
+output_training_path: /home/lwecke/Datensätze/Datensatz_v1_50p_3reg/Trainings_Outputs #new folder with timstamp will be here
 
 
-input_bulktraining_image_root_path: /home/lwecke/Datensätze/Datensatz_v1_50p_3reg/Datensatz_v1_50p_3reg/preprocessed_sorded_by_yaw
-output_bulktraining_path: /home/lwecke/Datensätze/Datensatz_v1_50p_3reg/Bulktraining_Outputs
+input_bulktraining_image_root_path: /home/lwecke/Datensätze/Datensatz_v1_50p_3reg/preprocessed_sorded_by_yaw
+output_bulktraining_path: /home/lwecke/Datensätze/Datensatz_v1_50p_3reg/Bulktraining_Outputs #new folder with timstamp will be here
 
+root_path_to_bulktraining_output: /home/lwecke/Datensätze/Datensatz_v1_50p_3reg/Bulktraining_Outputs/Lenet5_kroger_5epochs_2023_11_08/yaw
 
-
-
-#path_dataset: /mnt/0A60B2CB60B2BD2F/Projects/flow_regime_recognition_CameraPosition/datasets_preprocessed/Right200
-#path_dataset: /mnt/0A60B2CB60B2BD2F/Projects/flow_regime_recognition_CameraPosition/datasets_preprocessed/Front200
-path_SdCardPicture: /media/lwecke/B278E38678E347A5
-#path_SdCardPicture: /media/lwecke/01D86604CD911790/SA_Wecke/raw_data/Frontal200FinalNew
-#path_SdCardPicture: /media/lwecke/01D86604CD911790/SA_Wecke/raw_data/RightDataFinal200
-#path_SdCardPicture: /media/lwecke/01D86604CD911790/SA_Wecke/raw_data/RightDataSetFinal80
-
-path_for_loading_model_for_eval_only: /home/lwecke/PycharmProjects/flow_regime_recognition_CameraPosition/models/cnn_kroeger.h5
-path_logs: /home/lwecke/PycharmProjects/flow_regime_recognition_CameraPosition/logs
+path_SdCardPicture: /media/lwecke/B278E38678E347A5 #old
+path_for_loading_model_for_eval_only: /home/lwecke/PycharmProjects/flow_regime_recognition_CameraPosition/models/cnn_kroeger.h5 #old
+path_logs: /home/lwecke/PycharmProjects/flow_regime_recognition_CameraPosition/logs #old
 
 #activate to create a pipeline. Functions will be executed in the listed sequence.
 run_copyingDatasetFromUsbStick: false    #datapath must point to dest dir. source dir is path_SdCardPicture
@@ -29,8 +22,8 @@ run_preprocessing:              false
 run_trimmingDataset:            false #ERROR timestamps are wrong. Deletes all inbetween periods. Nothing stays
 run_labeling_balancing:         false #Balances Dataset and sets labels
 run_tuner:                      false
-run_training:                   true #works when set alone
-run_training_for_subdir:        false
+run_training:                   false #works when set alone
+run_training_for_subdir:        true  #bulktraining
 run_evaluation_only:            false
 run_saliencemapCreation:        false
 
@@ -54,17 +47,15 @@ callbacks: #count for tuning and training
     lr_sus_ep : 40
     lr_decay : 0.3
 training:
-  comment: "Reduced Front"
-  model_baseline: True #vanila LeNet5 without regularization and without dropout
   hp: #only work when model_baseline = False
-    batch_size: 124
+    batch_size: 54
     dropout: 0.0
     regularization: 0.0
-  no_epochs: 1
+  no_epochs: 20
   loss: categorical_crossentropy
   learningrate: 0.001
-  no_points_train_ratioInPercent: 0.8 #in percent
-  no_points_val_ratioInPercent: 0.1 #training data = 1 - train - val
+  no_points_train_ratioInPercent: 0.6 #in percent
+  no_points_val_ratioInPercent: 0.2 #test data = 1 - train - val
   dataset_test_no_repeats: 2
 
 tuning:

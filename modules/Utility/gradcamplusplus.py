@@ -6,6 +6,22 @@ import matplotlib.cm as cm
 import numpy as np
 from tensorflow.keras.preprocessing import image
 
+def find_highest_numbered_conv2d(model):
+    your_list = [layer.name for layer in model.layers]
+    highest_number = -1
+    conv2d_string = ''
+    for string in your_list:
+        if 'conv2d' in string:
+            try:
+                number = int(string.split('_')[-1])
+            except ValueError:  # handles the case when string is 'conv2d'
+                number = 0
+            if number >= highest_number:
+                highest_number = number
+                conv2d_string = string
+    return conv2d_string
+
+
 def get_heatmap(image, model, last_conv_layer_name,
                 label_name=None,
                   category_id=None):
@@ -21,10 +37,11 @@ def get_heatmap(image, model, last_conv_layer_name,
     #       Default is the category with the highest score in the prediction.
     #Return:
     #   A heatmap ndarray(without color).
-
+    image=image/255
     img_tensor = np.expand_dims(image, axis=0)
-
+    last_conv_layer_name=find_highest_numbered_conv2d(model)
     conv_layer = model.get_layer(last_conv_layer_name)
+    # print("last conv layer name: "  +  last_conv_layer_name)
     heatmap_model = keras.Model([model.inputs], [conv_layer.output, model.output])
 
     with tf.GradientTape() as gtape1:
@@ -62,8 +79,6 @@ def get_heatmap(image, model, last_conv_layer_name,
     heatmap /= max_heat
 
     return heatmap
-
-
 
 
 def get_preprocessed_img_from_path(img_path, target_size=(32, 32)):

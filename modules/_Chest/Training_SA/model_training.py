@@ -63,10 +63,6 @@ class Training:
     dname = os.path.dirname(abspath)
     os.chdir(dname)
     os.chdir('../')
-    import yaml
-    PrettySafeLoader.add_constructor(
-      u'tag:yaml.org,2002:python/tuple',
-      PrettySafeLoader.construct_python_tuple)
     with open('./params.yaml', 'r') as stream:
       self.params = yaml.load(stream,Loader=PrettySafeLoader)
     start_time = datetime.now()

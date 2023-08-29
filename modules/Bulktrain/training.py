@@ -17,6 +17,7 @@ from models.lenet5 import LeNet_baseline
 from models.lenet5 import LeNet_drop_reg
 from models.lenet5 import LeNet_Hypermodel
 from models.lenet5 import LeNet_reduced
+from models.lenet5 import Lenet5_kroger
 import os
 import subprocess
 import re
@@ -27,7 +28,7 @@ import threading
 class Training:
 
 
-  def __init__(self,input_training_image_path,output_raining_path,EPOCH,BATCHSIZE):
+  def __init__(self,input_training_image_path,output_training_path):
     self.auc = None
     self.input_training_image_path = None
     self.path_exp = None
@@ -46,6 +47,7 @@ class Training:
     self.tuning_laufzeit = 0
     self.my_hypermodel = LeNet_Hypermodel()
     self.output_queue = queue.Queue()
+    self.model=Lenet5_kroger
 
     ######################################################
     #METHA PARAMETER WHICH CANT BE PLACED IN PARAMS.YAML
@@ -62,40 +64,25 @@ class Training:
     dname = os.path.dirname(abspath)
     os.chdir(dname)
     os.chdir('../')
-    import yaml
-    PrettySafeLoader.add_constructor(
-      u'tag:yaml.org,2002:python/tuple',
-      PrettySafeLoader.construct_python_tuple)
-    with open('./params.yaml', 'r') as stream:
+    with open('../params.yaml', 'r') as stream:
       self.params = yaml.load(stream,Loader=PrettySafeLoader)
     start_time = datetime.now()
     if input_training_image_path != "":
       self.input_training_image_path = input_training_image_path
       start_time = datetime.now().strftime('%Y%m%d_%H%M%S')
-      new_dir = output_raining_path
+      new_dir = output_training_path
       # Create the new directory
       os.makedirs(new_dir, exist_ok=True)
       # Store the path to the new directory
-      self.output_raining_path = new_dir
-      os.makedirs(self.output_raining_path, exist_ok=True)
+      self.output_training_path = new_dir
+      os.makedirs(self.output_training_path, exist_ok=True)
     else:
       self.input_training_image_path =  input_training_image_path
-      self.output_raining_path = output_raining_path
-    if not os.path.exists(self.output_raining_path):
-      os.mkdir(self.output_raining_path)
-    os.chdir(self.output_raining_path)
+      self.output_training_path = output_training_path
+    if not os.path.exists(self.output_training_path):
+      os.mkdir(self.output_training_path)
+    os.chdir(self.output_training_path)
     print(str(self.params))
-    if not self.params["training"]["model_baseline"]:
-      print("DROPOUT MODEL IN USE")
-      self.model=LeNet_drop_reg
-    else:
-      print("Reduced MODEL IN USE")
-      self.model=LeNet_reduced
-    try:
-      if os.environ["TEST"]:
-        self.model=LeNet_baseline
-    except:
-      pass
     if self.params["run_tuner"]:
       self.tuning=True
     self.lr_start = self.params['training']['learningrate']
@@ -110,19 +97,13 @@ class Training:
     picture_hight   = self.params['preprocessing']['picture_hight']
     no_classes      = self.params['preprocessing']['no_classes']
 
-    os.chdir(self.output_raining_path)
+    os.chdir(self.output_training_path)
     print("Training Dir: "+os.getcwd())
 
     #Hyperparameter Tuned
     self.batch_size = self.params['training']['hp']['batch_size']
-    if BATCHSIZE != -1:
-      self.batch_size = int(BATCHSIZE)
-    if  self.params["training"]["model_baseline"]: #baseline means, no regularization and no dropout
-      self.dropout_rate =0 #wont be used for the model anyways. Just for consol printout and result.yaml
-      self.regularization =0 #wont be used for the model anyways. Just for consol printout and result.yaml
-    else:
-      self.dropout_rate   = self.params['training']['hp']['dropout']
-      self.regularization = self.params['training']['hp']['regularization']
+    self.dropout_rate   = self.params['training']['hp']['dropout']
+    self.regularization = self.params['training']['hp']['regularization']
 
     self.best_regularization = 0
     self.best_dropout_rate = 0
@@ -134,8 +115,8 @@ class Training:
     self.callback_learningrate_schedule = tf.keras.callbacks.LearningRateScheduler(self.lrfn, verbose=True)
 
     self.no_epochs = self.params['training']['no_epochs']
-    if EPOCH != -1:
-      self.no_epochs = int(EPOCH)
+
+    self.no_epochs = self.params['training']['no_epochs']
     self.loss = self.params['training']['loss']
     self.optimizer = tf.keras.optimizers.Adam(learning_rate=self.learningrate)
     self.dataset_test_no_repeats = self.params['training']['dataset_test_no_repeats']
@@ -207,7 +188,7 @@ class Training:
         "--logdir", "./tensorboard",
         "--name",
         f"Batchsize={self.params['training']['hp']['batch_size']} Dropout={self.params['training']['hp']['dropout']} Reg={self.params['training']['hp']['regularization']} Lr={self.params['training']['learningrate']}",
-        "--description", f"Experiment path: {self.output_raining_path}"
+        "--description", f"Experiment path: {self.output_training_path}"
       ],
       stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
 
@@ -261,11 +242,11 @@ class Training:
 
     # Callback to write logs onto tensorboard
     # To run tensorboard execute command: tensorboard --logdir training/results/tensorboard
-    os.chdir(self.output_raining_path)
+    os.chdir(self.output_training_path)
     #print(os.getcwd())
     if not os.path.exists("tensorboard"):
       os.makedirs("tensorboard")
-    self.tb_callback = tf.keras.callbacks.TensorBoard(log_dir=self.output_raining_path + "/tensorboard",
+    self.tb_callback = tf.keras.callbacks.TensorBoard(log_dir=self.output_training_path + "/tensorboard",
                                                       histogram_freq=1,
                                                       write_graph=True,
                                                       write_images=False,
@@ -287,10 +268,10 @@ class Training:
     print("regulaization: " +str(self.regularization))
     print("no_points_train: " +str(self.no_points_train ))
     print("no_points_val: "   +str(self.no_points_val))
-    print("Output Path " + self.output_raining_path)
+    print("Output Path " + self.output_training_path)
     print("Input Data Path " + self.input_training_image_path)
 
-    self.path_checkpoint = self.output_raining_path + f"/checkpoints/B{str(self.batch_size).split('.', 1)[0]}_D{str(self.dropout_rate).split('.', 1)[0]}_R{str(self.regularization).split('.', 1)[0]}"
+    self.path_checkpoint = self.output_training_path + f"/checkpoints/B{str(self.batch_size).split('.', 1)[0]}_D{str(self.dropout_rate).split('.', 1)[0]}_R{str(self.regularization).split('.', 1)[0]}"
     model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
       filepath=self.path_checkpoint,
       save_weights_only=True,
@@ -316,13 +297,13 @@ class Training:
     minutes, seconds = divmod(remainder, 60)
     self.trainings_laufzeit  = f"Days:{days}, Hours:{hours}, Minutes:{minutes}"
     print("Saving test Data Split tf_dataset_test..")
-    tf.data.experimental.save(self.tf_dataset_test, self.output_raining_path + '/tf_dataset_test.tf')
+    tf.data.experimental.save(self.tf_dataset_test, self.output_training_path + '/tf_dataset_test.tf')
     ds_element_spec = self.tf_dataset_test.element_spec
     import pickle
     # Save the ds_element_spec to a file using pickle for gradcam generation later on
-    with open(self.output_raining_path + '/element_spec.pkl', 'wb') as file:
+    with open(self.output_training_path + '/element_spec.pkl', 'wb') as file:
       pickle.dump(ds_element_spec, file)
-    self.model_built.load_weights(self.path_checkpoint)
+    #self.model_built.load_weights(self.path_checkpoint)
     if self.params['callbacks']['earlystop']:
       print("EARLY STOPPED AT: " + str(self.callback_early_stopping.stopped_epoch))
 
@@ -341,16 +322,16 @@ class Training:
     return lr
 
   def start_tensorboard_tuning(self):
-    os.chdir(self.output_raining_path)
+    os.chdir(self.output_training_path)
     print(f"starting tensorboard in dir: {os.getcwd()}/hparam_tuning")
     print(os.system(f"tensorboard dev upload \
     --logdir ./hparam_tuning \
     --name 'Tuning {self.params['path_dataset']}' \
-    --description 'Experiment path: {self.output_raining_path}'"))
+    --description 'Experiment path: {self.output_training_path}'"))
 
   def loadModel(self, path_model):
     self.tf_dataset_test= tf.data.experimental.load('../cache/ds_test.tf')
-    self.model_built=tf.keras.models.load_model(f"{self.output_raining_path}/{path_model}")
+    self.model_built=tf.keras.models.load_model(f"{self.output_training_path}/{path_model}")
     self.evaluate_only=True
 
   def evaluate(self):
@@ -359,7 +340,7 @@ class Training:
 
     self.results = self.model_built.evaluate(self.tf_dataset_test, verbose=True)
     print(f"Best Weights Evaluation: loss {self.results[0]}, acc {self.results[1]}")
-    os.chdir(self.output_raining_path)
+    os.chdir(self.output_training_path)
     x_test = []
     y_test = []
     for image, label in list(self.tf_dataset_test.unbatch().as_numpy_iterator()):
@@ -490,14 +471,14 @@ class Training:
     plt.ylim([0.0, 1.05])
     plt.xlabel("False Positive Rate")
     plt.ylabel("True Positive Rate")
-    plt.title(self.output_raining_path)
+    plt.title(self.output_training_path)
     plt.legend(loc="lower right")
-    plt.savefig(f"{self.output_raining_path}/Roc.png")
-    self.model_built.save(self.output_raining_path + '/cnn_acc' + str(round(self.results[1] * 100, 0)) + "_auc" + str(round(self.auc, 1)) + '.h5')
+    plt.savefig(f"{self.output_training_path}/Roc.png")
+    self.model_built.save(self.output_training_path + '/cnn_acc' + str(round(self.results[1] * 100, 0)) + "_auc" + str(round(self.auc, 1)) + '.h5')
     plt.show()
   def report(self):
     print("##############################  \n ########## REPORT ########## \n ##############################")
-    os.chdir(self.output_raining_path)
+    os.chdir(self.output_training_path)
     # convert the history.history dict to a pandas DataFrame:
     hist_df = pd.DataFrame(self.history.history)
     # save to json:
@@ -536,24 +517,35 @@ class Training:
       'tuning_laufzeit': self.tuning_laufzeit
     }
 
-    with open(self.output_raining_path + '/results.yaml', 'w') as outfile:
+    with open(self.output_training_path + '/results.yaml', 'w') as outfile:
       yaml.dump(training_info, outfile, default_flow_style=False, sort_keys=False)
-    with open(self.output_raining_path + '/params_for_this_training.yaml', 'w') as outfile:
+    with open(self.output_training_path + '/params_for_this_training.yaml', 'w') as outfile:
         yaml.dump(self.params, outfile, default_flow_style=False, sort_keys=False)
     try:
-      with open(self.output_raining_path + '/tensorboard_link.txt', 'w') as f:
+      with open(self.output_training_path + '/tensorboard_link.txt', 'w') as f:
         f.write(self.tensorboard_url)
     except FileNotFoundError:
-      print(f"The {self.output_raining_path} directory does not exist")
+      print(f"The {self.output_training_path} directory does not exist")
     if self.tuning:
       senden("Tuning Finished! "    + "ACC: " + str(self.results[1]) + "\n Tuning_Laufzeit: "      + str(self.tuning_laufzeit)+" Confusion_matrix:"+ str(self.conf_mat)+" reg: "+str(self.best_regularization)+" batch:"+str(self.best_batchsize)+" drop:"+str(self.best_dropout_rate))
     else:
-      senden("Training Finished! " + "ACC: " + str(self.results[1]) + "\n Trainings_Laufzeit: " + str(self.trainings_laufzeit) +" Confusion_matrix:" + self.parseConfMat(self.conf_mat) +"\n AUC: " + str(self.auc) +"\n Path: " + self.output_raining_path + "\n Tensorboard: " + self.tensorboard_url)
+      senden("Training Finished! " + "ACC: " + str(self.results[1]) + "\n Trainings_Laufzeit: " + str(self.trainings_laufzeit) +" Confusion_matrix:" + self.parseConfMat(self.conf_mat) +"\n AUC: " + str(self.auc) +"\n Path: " + self.output_training_path + "\n Tensorboard: " + self.tensorboard_url)
     self.stop_tensorboard()
 
 def runTraining(DATAPATH, EPOCH, BATCHSIZE):
   print("########### TRAINING ###########")
-  training = Training(DATAPATH, EPOCH, BATCHSIZE)
+  training = Training(DATAPATH)
   training.train()
   training.evaluate()
   training.report()
+
+if __name__ == '__main__':
+    input_preprocessed_img_dir ="/home/lwecke/Datensätze/Datensatz_v1_50p_3reg/preprocessed_sorded_by_yaw/yaw_6.4285712242126465"
+    output_bulktraining_path ="/home/lwecke/Datensätze/Datensatz_v1_50p_3reg/Bulktraining_Outputs/Einzeltraining"
+    yaw_value = os.path.basename(input_preprocessed_img_dir)
+    print(f"Training for {input_preprocessed_img_dir}...")
+    # Initialize and train the model
+    trainer = Training(input_preprocessed_img_dir,output_bulktraining_path + "/" + yaw_value)  # Or however you initialize your training object
+    trainer.train()
+    trainer.evaluate()
+    trainer.report()

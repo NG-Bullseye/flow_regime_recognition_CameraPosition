@@ -170,9 +170,6 @@ class Training:
     print("############ INITIALIZATION DONE ############")
 
   def load_yaml_params(self):
-    PrettySafeLoader.add_constructor(
-      u'tag:yaml.org,2002:python/tuple',
-      PrettySafeLoader.construct_python_tuple)
     with open('../params.yaml', 'r') as stream:
       return yaml.load(stream, Loader=PrettySafeLoader)
 

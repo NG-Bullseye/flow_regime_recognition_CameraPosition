@@ -1,25 +1,27 @@
 # Diplomarbeit LEONARD-RICCARDO HANS WECKE
-##Installation
+## Installation
 virtual enviroment is: env_python3.7_tens2.3_dev (even though its tensorflow2.4.0)
 Tensorflow 2.4.0
 Python 3.7
 np 11.8.5 (oder so)
 requirements.txt
 CPU support
-##Configuration
+## Configuration
 param.yaml input output pfade angeben
-##Image preprocessing
+## Image preprocessing
 56x56px , greyscale
-##Image labeling and balancing
-##Image Sorting
+
+## Image labeling and balancing
+
+## Image Sorting
 Sort into folders by yaw values
-##Training
+## Training
 training for each yaw value folder
-##Evaluation
+## Evaluation
 Accuracy eval and performance metrics
-##gradcam++
+## gradcam++
 in jupiternotebook files 
-##Custom Baysian optimization for simulation of camera positioning
+## Custom Baysian optimization for simulation of camera positioning
 use mapping of yaw and acc for simulation of camera movement
 Benchmarkes CBO to Gridsearch, Randomsearch, BO and other optimization
 ## Postgres DB
