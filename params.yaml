@@ -10,7 +10,7 @@ output_training_path: /home/lwecke/Datensätze/Datensatz_v1_50p_3reg/Trainings_O
 input_bulktraining_image_root_path: /home/lwecke/Datensätze/Datensatz_v1_50p_3reg/preprocessed_sorded_by_yaw
 output_bulktraining_path: /home/lwecke/Datensätze/Datensatz_v1_50p_3reg/Bulktraining_Outputs #new folder with timstamp will be here
 
-root_path_to_bulktraining_output: /home/lwecke/Datensätze/Datensatz_v1_50p_3reg/Bulktraining_Outputs/Lenet5_kroger_5epochs_2023_11_08/yaw
+root_path_to_bulktraining_output: /home/lwecke/Datensätze/Datensatz_v1_50p_3reg/Bulktraining_Outputs/Bulktraining_2023_12_09
 
 path_SdCardPicture: /media/lwecke/B278E38678E347A5 #old
 path_for_loading_model_for_eval_only: /home/lwecke/PycharmProjects/flow_regime_recognition_CameraPosition/models/cnn_kroeger.h5 #old
@@ -51,7 +51,7 @@ training:
     batch_size: 54
     dropout: 0.0
     regularization: 0.0
-  no_epochs: 20
+  no_epochs: 90
   loss: categorical_crossentropy
   learningrate: 0.001
   no_points_train_ratioInPercent: 0.6 #in percent

@@ -196,6 +196,10 @@ def main():
     postprocessor = Postprocessor()
     #postprocessor.db.reset()
     #postprocessor.run()
+    #postprocessor.populate_db_with_yaw_model_path()
+    #postprocessor.populate_db_with_yaw_images_path()
+    #postprocessor.populate_db_with_yaw_acc()
+    #postprocessor.bulk_compute_gradcamPP_mean_for_each_yaw()
     postprocessor.compute_rec_scalar_from_gradcam_mean_for_each_yaw()
     #postprocessor.test_gcpp_mean()
 
