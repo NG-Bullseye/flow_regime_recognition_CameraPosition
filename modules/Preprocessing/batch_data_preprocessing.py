@@ -7,8 +7,7 @@ from tqdm import tqdm
 
 p = os.path.abspath('')
 sys.path.insert(1, p)
-from modules.data_import_and_preprocessing.dataset_formation import DataParser, ImageDataExtractor, LabelExtractor
-
+from dataset_formation import DataParser, ImageDataExtractor, LabelExtractor
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 def run():
@@ -23,7 +22,10 @@ def run():
     class PrettySafeLoader(yaml.SafeLoader):
       def construct_python_tuple(self, node):
         return tuple(self.construct_sequence(node))
-
+    PrettySafeLoader.add_constructor(
+        u'tag:yaml.org,2002:python/tuple',
+        PrettySafeLoader.construct_python_tuple
+    )
     with open('./params.yaml', 'r') as stream:
       params = yaml.load(stream,Loader=PrettySafeLoader)
     picture_width = params['preprocessing']['picture_width']

@@ -1,7 +1,12 @@
 import os
+from collections import defaultdict
+
 import training as model_training
 from modules.Utility.PrettySafeLoader import PrettySafeLoader
 from modules import Utility
+import os
+import yaml
+from datetime import datetime
 
 def bulktrain(input_bulktraining_image_root_path,output_bulktraining_path):
     if not os.path.isdir(input_bulktraining_image_root_path):
@@ -15,7 +20,11 @@ def bulktrain(input_bulktraining_image_root_path,output_bulktraining_path):
         yaw_value = os.path.basename(subdirectory)
         print(f"Training for {subdirectory}...")
         # Initialize and train the model
-        trainer = model_training.Training(subdirectory,output_bulktraining_path+"/"+yaw_value)  # Or however you initialize your training object
+        outputpath=output_bulktraining_path + "/" + yaw_value
+        if not os.path.exists(outputpath):
+            os.makedirs(outputpath)
+        os.chdir(outputpath)
+        trainer = model_training.Training(subdirectory,outputpath)  # Or however you initialize your training object
         trainer.train()
         trainer.evaluate()
         trainer.report()
@@ -23,46 +32,47 @@ def bulktrain(input_bulktraining_image_root_path,output_bulktraining_path):
         results[yaw_value] = trainer.results[1]  # Assuming trainer.results[1] is validation accuracy
     return results
 
+yaw_to_accuracies = defaultdict(list)
 
-def main():
-    import os
-    import yaml
-    from datetime import datetime
 
+def main(n_repeats):
     PrettySafeLoader.add_constructor(
         u'tag:yaml.org,2002:python/tuple',
         PrettySafeLoader.construct_python_tuple)
     with open('../../params.yaml', 'r') as stream:
         params = yaml.load(stream, Loader=PrettySafeLoader)
 
-    # Get the current time
-    current_time = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    # Store the original output path
+    original_output_path = params['output_bulktraining_path']
 
-    # Check if "Bulktraining" is present at the end of the path
-    if params['output_training_path'].endswith('/Bulktraining'):
-        # Replace the existing timestamp with the current time
-        params['output_training_path'] = params['output_training_path'][:-(len('/Bulktraining'))] + f'{current_time}'
-    else:
-        # Append "/Bulktraining<currentTime>"
-        params['output_training_path'] = os.path.join(params['output_training_path'], f'Bulktraining{current_time}')
+    for i in range(n_repeats):
+        current_time = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        unique_folder = os.path.join(original_output_path, f'Bulktraining_n_repeat{i}_{current_time}')
 
-    # Save the modified data back to the YAML file
-    with open('./params.yaml', 'w') as file:
-        yaml.dump(params, file)
-    # Example usage:
-    with open('./params.yaml', 'r') as stream:
-        params = yaml.load(stream, Loader=PrettySafeLoader)
-    output_bulktraining_path=    params['output_bulktraining_path']
-    input_bulktraining_image_root_path = params['input_bulktraining_image_root_path']
-    yaw_to_accuracy = bulktrain(input_bulktraining_image_root_path,output_bulktraining_path)
-    # print yaw_to_accuracy to check the validation accuracy for each yaw value
-    print(yaw_to_accuracy)
-    # directory containing all yaw directories
-    yaw_dir = "/home/lwecke/Datensätze/Datensatz_v1_50p_3reg/preprocessed_sorded_by_yaw"
-    # destination directory
-    dst_dir = "/home/lwecke/Datensätze/Datensatz_v1_50p_3reg/Bulktraining_Outputs/Bulktraining_2023_08_08/yaw"
-    #Utility.copy_trainingdata_out_of_yaw_image_folders.run(yaw_dir,dst_dir)
+        if not os.path.exists(unique_folder):
+            os.makedirs(unique_folder)
+
+        params['output_bulktraining_path'] = unique_folder
+
+        yaw_to_accuracy = bulktrain(params['input_bulktraining_image_root_path'], unique_folder)
+
+        # Accumulate the accuracy values for each yaw
+        for yaw, accuracy in yaw_to_accuracy.items():
+            yaw_to_accuracies[yaw].append(accuracy)
+
+    # Print out the dict containing lists of accuracy values for each yaw
+    print("Accumulated accuracy values for each yaw:", yaw_to_accuracies)
+
+    # Compute and store the arithmetic average of the accuracy values for each yaw
+    yaw_to_avg_accuracy = {}
+    for yaw, accuracies in yaw_to_accuracies.items():
+        avg_accuracy = sum(accuracies) / len(accuracies)
+        yaw_to_avg_accuracy[yaw] = avg_accuracy
+
+    # Print out the dict containing the average accuracy values for each yaw
+    print("Average accuracy values for each yaw:", yaw_to_avg_accuracy)
+
 
 
 if __name__ == '__main__':
-    main()
+    main(n_repeats=5)

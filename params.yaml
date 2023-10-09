@@ -1,79 +1,68 @@
-input_output_labeling_path: /home/lwecke/Datensätze/Datensatz_v1_50p_3reg/Testdatensatz_2p_2reg/preprocessed_images56
-
-input_preprocessed_path: /home/lwecke/Datensätze/Datensatz_v1_50p_3reg/Testdatensatz_2p_2reg/dataset_2023-07-18
-output_preprocessed_path: /home/lwecke/Datensätze/Datensatz_v1_50p_3reg/Testdatensatz_2p_2reg/preprocessed_images56 #This foulder is created and images are put into it
-
-input_training_dataset_path: /home/lwecke/Datensätze/Datensatz_v1_50p_3reg/Datensatz_v1_50p_3reg/preprocessed_images56
-output_training_path: /home/lwecke/Datensätze/Datensatz_v1_50p_3reg/Trainings_Outputs #new folder with timstamp will be here
-
-
-input_bulktraining_image_root_path: /home/lwecke/Datensätze/Datensatz_v1_50p_3reg/preprocessed_sorded_by_yaw
-output_bulktraining_path: /home/lwecke/Datensätze/Datensatz_v1_50p_3reg/Bulktraining_Outputs #new folder with timstamp will be here
-
-root_path_to_bulktraining_output: /home/lwecke/Datensätze/Datensatz_v1_50p_3reg/Bulktraining_Outputs/Bulktraining_2023_12_09
-
-path_SdCardPicture: /media/lwecke/B278E38678E347A5 #old
-path_for_loading_model_for_eval_only: /home/lwecke/PycharmProjects/flow_regime_recognition_CameraPosition/models/cnn_kroeger.h5 #old
-path_logs: /home/lwecke/PycharmProjects/flow_regime_recognition_CameraPosition/logs #old
-
-#activate to create a pipeline. Functions will be executed in the listed sequence.
-run_copyingDatasetFromUsbStick: false    #datapath must point to dest dir. source dir is path_SdCardPicture
-run_preprocessing:              false
-run_trimmingDataset:            false #ERROR timestamps are wrong. Deletes all inbetween periods. Nothing stays
-run_labeling_balancing:         false #Balances Dataset and sets labels
-run_tuner:                      false
-run_training:                   false #works when set alone
-run_training_for_subdir:        true  #bulktraining
-run_evaluation_only:            false
-run_saliencemapCreation:        false
-
-preprocessing:
-  filename_ExpermientTimestamps: ExpermientTimestamps.json
-  filename_LabelTimestamps: LabelTimestamps.json
-  picture_width: 56  #this value also is used for auto naming the preprocessed_images56 directory. Dont ONLY change hight. Allways use square values like 30x30
-  picture_hight: 56
-  no_classes: 3
-  label_name: flow_regime
-  file_type_picture: png
-  autoplay_training: false # Depreciated. automaticly starts training after preprocessing.
-
-callbacks: #count for tuning and training
+callbacks:
   earlystop: true
   lr_schedule:
     enabled: false
-    lr_max : 0.1
-    lr_min : 0.0001
-    lr_ramp_ep : 36
-    lr_sus_ep : 40
-    lr_decay : 0.3
-training:
-  hp: #only work when model_baseline = False
-    batch_size: 54
-    dropout: 0.0
-    regularization: 0.0
-  no_epochs: 90
-  loss: categorical_crossentropy
-  learningrate: 0.001
-  no_points_train_ratioInPercent: 0.6 #in percent
-  no_points_val_ratioInPercent: 0.2 #test data = 1 - train - val
-  dataset_test_no_repeats: 2
-
-tuning:
-  hp: #not in use
-    batch_size: 32
-    dropout: 0.2
-    regularization: 0.001
-  no_epochs: 1
-  loss: categorical_crossentropy
-  learningrate: 0.001
-  no_points_train_ratioInPercent: 0.5 #choose small fraction of dataset for faster tuning.
-  no_points_val_ratioInPercent: 0.3
-  dataset_test_no_repeats: 2
-globalValues:
-  datashape: null
-  labelshape: null
-datashape: !!python/tuple  #Change if image resolution changes. Used by Hypermodel. Cant be used as parameter due to inheritance. Dirty workaround though.  Use PrettySaveLoader to load this yaml.
+    lr_decay: 0.3
+    lr_max: 0.1
+    lr_min: 0.0001
+    lr_ramp_ep: 36
+    lr_sus_ep: 40
+datashape: !!python/tuple
 - 56
 - 56
 - 1
-labelshape: 3 #dont change. Used by Hypermodel. Cant be used as parameter due to inheritance. Dirty workaround though.
+globalValues:
+  datashape: null
+  labelshape: null
+input_bulktraining_image_root_path: "/home/lwecke/Datens\xE4tze/Test_datensatz_output/preprocessed_sorded_by_yaw"
+input_output_labeling_path: "/home/lwecke/Datens\xE4tze/Test_datensatz_output/preprocessed_images56"
+input_preprocessed_path: /media/lwecke/B278E38678E347A5/New_Test_dataset_2023-09-15
+input_training_dataset_path: "/home/lwecke/Datens\xE4tze/Datensatz_v1_50p_3reg/Datensatz_v1_50p_3reg/preprocessed_images56"
+labelshape: 3
+output_bulktraining_path: "/home/lwecke/Datens\xE4tze/Test_datensatz_output/n_repeats"
+output_preprocessed_path: "/home/lwecke/Datens\xE4tze/Test_datensatz_output/preprocessed_images56"
+output_training_path: "/home/lwecke/Datens\xE4tze/Datensatz_v1_50p_3reg/Trainings_Outputs_dropout"
+path_SdCardPicture: /media/lwecke/B278E38678E347A5/New_Test_dataset_2023-09-15
+path_for_loading_model_for_eval_only: /home/lwecke/PycharmProjects/flow_regime_recognition_CameraPosition/models/cnn_kroeger.h5
+path_logs: /home/lwecke/PycharmProjects/flow_regime_recognition_CameraPosition/logs
+preprocessing:
+  autoplay_training: false
+  file_type_picture: png
+  filename_ExpermientTimestamps: ExpermientTimestamps.json
+  filename_LabelTimestamps: LabelTimestamps.json
+  label_name: flow_regime
+  no_classes: 3
+  picture_hight: 56
+  picture_width: 56
+root_path_to_bulktraining_output: "/home/lwecke/Datens\xE4tze/Test_datensatz_output"
+run_copyingDatasetFromUsbStick: false
+run_evaluation_only: false
+run_labeling_balancing: false
+run_preprocessing: false
+run_saliencemapCreation: false
+run_training: false
+run_training_for_subdir: true
+run_trimmingDataset: false
+run_tuner: false
+training:
+  dataset_test_no_repeats: 2
+  hp:
+    batch_size: 50
+    dropout: 0.0
+    regularization: 0.0
+  learningrate: 0.001
+  loss: categorical_crossentropy
+  no_epochs: 90
+  no_points_train_ratioInPercent: 0.6
+  no_points_val_ratioInPercent: 0.2
+tuning:
+  dataset_test_no_repeats: 2
+  hp:
+    batch_size: 70
+    dropout: 0.2
+    regularization: 0.001
+  learningrate: 0.001
+  loss: categorical_crossentropy
+  no_epochs: 1
+  no_points_train_ratioInPercent: 0.5
+  no_points_val_ratioInPercent: 0.3

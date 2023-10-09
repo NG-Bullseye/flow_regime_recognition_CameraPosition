@@ -11,35 +11,73 @@ from tensorflow.keras import regularizers
 import keras_tuner as kt
 
 
+class custom_net:
+  @staticmethod
+  def build(data_shape, label_shape, regularization, dropout_rate=0.1):
+    print(f"dropout_rate: {dropout_rate}")
+    model = Sequential()
+    regularization=regularizers.l2(0.001)
+    # First CONV => RELU => POOL layer
+    model.add(
+      Conv2D(32, (3, 3), padding="same", activation='relu', input_shape=data_shape, kernel_regularizer=regularization))
+    #model.add(Dropout(dropout_rate))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
 
+    # Second CONV => RELU => POOL layer
+    model.add(Conv2D(16, (3, 3), padding="same", activation='relu', kernel_regularizer=regularization))
+    #model.add(Dropout(dropout_rate))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+
+    # Third CONV => RELU layer (no pooling to retain information)
+    model.add(Conv2D(32, (3, 3), padding="same", activation='relu', kernel_regularizer=regularization))
+    #model.add(Dropout(dropout_rate))
+
+    # Flatten layer
+    model.add(Flatten())
+
+    # Fully connected layer
+    model.add(Dense(128, activation='relu', kernel_regularizer=regularization))
+    model.add(Dropout(dropout_rate))
+
+    # Softmax classifier
+    model.add(Dense(label_shape, activation='softmax'))
+
+    return model
 
 class Lenet5_kroger:
   @staticmethod
-  def build(data_shape,label_shape,dropout_rate,regularization):
+  def build(data_shape,label_shape,regularization,dropout_rate=0.3):
     # initialize the model
+    print(f"dropout_rate: {dropout_rate}")
+    regularization = regularizers.l2(0)
     model = Sequential()
-
+    dropout_rate = 0
     # first CONV => RELU => POOL layer
-    model.add(Conv2D(48, (3, 3), padding="same", activation='relu', input_shape=data_shape)) # Assuming 3 color channels
+    model.add(Conv2D(48, (3, 3), padding="same", activation='relu', input_shape=data_shape,kernel_regularizer=regularization)) # Assuming 3 color channels
+   # model.add(Dropout(dropout_rate))
     model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
 
     # second CONV => RELU => POOL layer
-    model.add(Conv2D(16, (3, 3), padding="same", activation='relu'))
+    model.add(Conv2D(16, (3, 3), padding="same", activation='relu',kernel_regularizer=regularization))
+    #model.add(Dropout(dropout_rate))
     model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
 
     # third CONV => RELU => POOL layer
-    model.add(Conv2D(64, (3, 3), padding="same", activation='relu'))
+    model.add(Conv2D(64, (3, 3), padding="same", activation='relu',kernel_regularizer=regularization))
+    #model.add(Dropout(dropout_rate))
     model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
 
     # fourth CONV => RELU => POOL layer
-    model.add(Conv2D(128, (3, 3), padding="same", activation='relu'))
+    model.add(Conv2D(128, (3, 3), padding="same", activation='relu',kernel_regularizer=regularization))
+    #model.add(Dropout(dropout_rate))
     model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
 
     # Flatten layer
     model.add(Flatten())
 
     # Fully connected layer
-    model.add(Dense(512, activation='relu'))
+    model.add(Dense(512, activation='relu',kernel_regularizer=regularization))
+    #model.add(Dropout(dropout_rate))
 
     # softmax classifier
     model.add(Dense(label_shape, activation='softmax'))

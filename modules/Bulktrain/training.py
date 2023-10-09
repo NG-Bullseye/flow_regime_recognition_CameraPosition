@@ -17,7 +17,11 @@ from models.lenet5 import LeNet_baseline
 from models.lenet5 import LeNet_drop_reg
 from models.lenet5 import LeNet_Hypermodel
 from models.lenet5 import LeNet_reduced
+
 from models.lenet5 import Lenet5_kroger
+#from models.lenet5 import custom_net as Lenet5_kroger
+from collections import defaultdict
+
 import os
 import subprocess
 import re
@@ -29,8 +33,9 @@ class Training:
 
 
   def __init__(self,input_training_image_path,output_training_path):
+    self.output_training_path = output_training_path  # This should already be unique before calling __init__
     self.auc = None
-    self.input_training_image_path = None
+    self.input_training_image_path = input_training_image_path
     self.path_exp = None
     self.evaluate_only = False
     self.tuning = False
@@ -60,28 +65,15 @@ class Training:
     self.physical_devices = tf.config.list_physical_devices('CPU')
     #tf.config.experimental.set_memory_growth(self.physical_devices[0], True)
 
+
+
     abspath = os.path.abspath(__file__)
     dname = os.path.dirname(abspath)
     os.chdir(dname)
     os.chdir('../')
     with open('../params.yaml', 'r') as stream:
-      self.params = yaml.load(stream,Loader=PrettySafeLoader)
-    start_time = datetime.now()
-    if input_training_image_path != "":
-      self.input_training_image_path = input_training_image_path
-      start_time = datetime.now().strftime('%Y%m%d_%H%M%S')
-      new_dir = output_training_path
-      # Create the new directory
-      os.makedirs(new_dir, exist_ok=True)
-      # Store the path to the new directory
-      self.output_training_path = new_dir
-      os.makedirs(self.output_training_path, exist_ok=True)
-    else:
-      self.input_training_image_path =  input_training_image_path
-      self.output_training_path = output_training_path
-    if not os.path.exists(self.output_training_path):
-      os.mkdir(self.output_training_path)
-    os.chdir(self.output_training_path)
+      self.params = yaml.load(stream, Loader=PrettySafeLoader)
+    #start_time = datetime.now()
     print(str(self.params))
     if self.params["run_tuner"]:
       self.tuning=True
@@ -158,10 +150,15 @@ class Training:
 
     self.tf_dataset_train = self.dataset_train.cast_tf_dataset().batch(self.batch_size).prefetch(1)
     self.tf_dataset_val = self.dataset_val.cast_tf_dataset().batch(self.batch_size).prefetch(1)
+    count = sum(1 for _ in self.tf_dataset_val)
+    print(f"Number of batches in tf_dataset_val: {count}")
+    for batch in self.tf_dataset_val.take(1):
+      print(f"Number of images in one batch: {batch[0].shape[0]}")
+
     self.tf_dataset_test = self.dataset_test.cast_tf_dataset().batch(self.batch_size)
     # Callback to stop training after no performance decrease
-    self.callback_early_stopping = tf.keras.callbacks.EarlyStopping(patience=30,
-                                                                    restore_best_weights=False,
+    self.callback_early_stopping = tf.keras.callbacks.EarlyStopping(patience=50,
+                                                                    restore_best_weights=True,
                                                                     monitor='categorical_accuracy',
                                                                     min_delta=0.01,
                                                                     mode='auto',
@@ -254,7 +251,7 @@ class Training:
                                                       profile_batch=2,
                                                       embeddings_freq=1)
     # Initialize an empty Queue to pass messages from the output processing thread to the main thread
-    self.start_threads()
+   # self.start_threads()
 
     self.time_start = datetime.now()
     # Custom Scheduler Function
@@ -280,9 +277,8 @@ class Training:
       save_best_only=True,
       verbose=0)
     callbacks=self.callback_toogled
-    callbacks.append(self.tb_callback)
+    #callbacks.append(self.tb_callback)
     callbacks.append(model_checkpoint_callback)
-    tf.config.run_functions_eagerly(True)
     self.history = self.model_built.fit(self.tf_dataset_train,
                                         epochs=self.no_epochs,
                                         batch_size=self.batch_size,
@@ -358,124 +354,8 @@ class Training:
     predictions_idx = np.argmax(predictions_mat, axis=1)
     self.conf_mat = tf.math.confusion_matrix(y_test_idx, predictions_idx)
     print("Confusion Matrix: " + self.parseConfMat(self.conf_mat))
-
-    import matplotlib.pyplot as plt
-    from sklearn.preprocessing import LabelBinarizer
-    from sklearn.metrics import roc_curve, auc, roc_auc_score
-
-    target = ['Dispersed', 'Loaded', 'Flooded']
-    # set plot figure size
-    fig, c_ax = plt.subplots(1, 1, figsize=(12, 8))
-
-    # function for scoring roc auc score for multi-class
-
-    lb = LabelBinarizer()
-    lb.fit(y_test)
-    y_test = lb.transform(y_test_idx)
-    y_pred = lb.transform(predictions_idx)
-    for (idx, c_label) in enumerate(target):
-      fpr, tpr, thresholds = roc_curve(y_test[:,idx], y_pred[:,idx])
-      c_ax.plot(fpr, tpr, label='%s (AUC:%0.2f)' % (c_label, auc(fpr, tpr)))
-    c_ax.plot(fpr, fpr, 'b-', label='Random Guessing')
-    self.auc=roc_auc_score(y_test, y_pred, average="macro")
-    print('ROC AUC score:',self.auc)
-
-    c_ax.legend()
-    c_ax.set_xlabel('False Positive Rate')
-    c_ax.set_ylabel('True Positive Rate')
-    plt.show()
-##########y
-    # Compute ROC curve and ROC area for each class
-
-    from sklearn.preprocessing import label_binarize
-
-    fpr = dict()
-    tpr = dict()
-    roc_auc = dict()
-    y = label_binarize(y_test, classes=["Dispersed", "Loaded","Flooded"])
-    n_classes=self.params["labelshape"]
-    print("y_test "+str(y_test)+" y_pred "+str(y_pred))
-    for (i, classname) in enumerate(target):
-      fpr[i], tpr[i], thresholds = roc_curve(y_test[:, i], y_pred[:, i])
-      roc_auc[i] = auc(fpr[i], tpr[i])
-
-    # Compute micro-average ROC curve and ROC area
-    fpr["micro"], tpr["micro"], _ = roc_curve(y_test.ravel(), y_pred.ravel())
-    roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
-    plt.figure()
-    lw = 2
-    plt.plot(
-      fpr[2],
-      tpr[2],
-      color="darkorange",
-      lw=lw,
-      label="ROC curve (area = %0.2f)" % roc_auc[2],
-    )
-    plt.plot([0, 1], [0, 1], color="navy", lw=lw, linestyle="--")
-    plt.xlim([0.0, 1.0])
-    plt.ylim([0.0, 1.05])
-    plt.xlabel("False Positive Rate")
-    plt.ylabel("True Positive Rate")
-    plt.title("Receiver operating characteristic example")
-    plt.legend(loc="lower right")
-    plt.show()
-
-    # First aggregate all false positive rates
-    all_fpr = np.unique(np.concatenate([fpr[i] for i in range(n_classes)]))
-
     # Then interpolate all ROC curves at this points
-    mean_tpr = np.zeros_like(all_fpr)
-    for i in range(n_classes):
-      mean_tpr += np.interp(all_fpr, fpr[i], tpr[i])
-
-    # Finally average it and compute AUC
-    mean_tpr /= n_classes
-
-    fpr["macro"] = all_fpr
-    tpr["macro"] = mean_tpr
-    roc_auc["macro"] = auc(fpr["macro"], tpr["macro"])
-
-    # Plot all ROC curves
-    plt.figure()
-    plt.plot(
-      fpr["micro"],
-      tpr["micro"],
-      label="micro-average ROC curve (area = {0:0.2f})".format(roc_auc["micro"]),
-      color="deeppink",
-      linestyle=":",
-      linewidth=2,
-    )
-
-    plt.plot(
-      fpr["macro"],
-      tpr["macro"],
-      label="macro-average ROC curve (area = {0:0.2f})".format(roc_auc["macro"]),
-      color="navy",
-      linestyle=":",
-      linewidth=2,
-    )
-    import matplotlib.pyplot as plt
-    from itertools import cycle
-    colors = cycle(["aqua", "darkorange", "green","blue"])
-    for i, color in zip(range(n_classes), colors):
-      plt.plot(
-        fpr[i],
-        tpr[i],
-        color=color,
-        lw=lw,
-        label=f"ROC curve of class {target[i]} "+"(area = {1:0.2f})".format(i, roc_auc[i]),
-      )
-
-    plt.plot([0, 1], [0, 1], "k--", lw=lw)
-    plt.xlim([0.0, 1.0])
-    plt.ylim([0.0, 1.05])
-    plt.xlabel("False Positive Rate")
-    plt.ylabel("True Positive Rate")
-    plt.title(self.output_training_path)
-    plt.legend(loc="lower right")
-    plt.savefig(f"{self.output_training_path}/Roc.png")
-    self.model_built.save(self.output_training_path + '/cnn_acc' + str(round(self.results[1] * 100, 0)) + "_auc" + str(round(self.auc, 1)) + '.h5')
-    plt.show()
+    self.model_built.save(self.output_training_path + '/cnn_acc' + str(round(self.results[1] * 100000, 0)/1000) +'.h5')
   def report(self):
     print("##############################  \n ########## REPORT ########## \n ##############################")
     os.chdir(self.output_training_path)
@@ -530,7 +410,8 @@ class Training:
       senden("Tuning Finished! "    + "ACC: " + str(self.results[1]) + "\n Tuning_Laufzeit: "      + str(self.tuning_laufzeit)+" Confusion_matrix:"+ str(self.conf_mat)+" reg: "+str(self.best_regularization)+" batch:"+str(self.best_batchsize)+" drop:"+str(self.best_dropout_rate))
     else:
       senden("Training Finished! " + "ACC: " + str(self.results[1]) + "\n Trainings_Laufzeit: " + str(self.trainings_laufzeit) +" Confusion_matrix:" + self.parseConfMat(self.conf_mat) +"\n AUC: " + str(self.auc) +"\n Path: " + self.output_training_path + "\n Tensorboard: " + self.tensorboard_url)
-    self.stop_tensorboard()
+
+    #self.stop_tensorboard()
 
 def runTraining(DATAPATH, EPOCH, BATCHSIZE):
   print("########### TRAINING ###########")

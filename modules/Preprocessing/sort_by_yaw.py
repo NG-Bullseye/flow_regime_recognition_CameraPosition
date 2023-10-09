@@ -1,11 +1,7 @@
-import os
-import json
 import shutil
 import yaml
 import os
 import json
-import random
-import numpy as np
 
 class PrettySafeLoader(yaml.SafeLoader):
     def construct_python_tuple(self, node):
@@ -53,7 +49,7 @@ def sort_files_by_yaw(path: str):
 def main():
     with open('../../params.yaml', 'r') as stream:
         params = yaml.load(stream, Loader=PrettySafeLoader)
-    path = params['output_preprocessed_path']
+    path = params['output_preprocessed_path'] #input for this method
     print("Sorting files by yaw...")
     sort_files_by_yaw(path)
 

@@ -57,7 +57,8 @@ coverage.xml
 # Translations
 *.mo
 *.pot
-
+/home/lwecke/PycharmProjects/flow_regime_recognition_CameraPosition/Output
+/home/lwecke/PycharmProjects/flow_regime_recognition_CameraPosition/newenv
 # Django stuff:
 *.log
 local_settings.py
