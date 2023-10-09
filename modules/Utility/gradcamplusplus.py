@@ -115,14 +115,6 @@ def combine_image_and_heatmap(image, heatmap, alpha=0.4, heatMapCorlorspace="coo
 
     return superimposed_img
 
-    #heatmap = cv2.resize(heatmap, (image.shape[1], image.shape[0]))
-    #heatmap = (heatmap * 255).astype("uint8")
-    #heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
-    #superimposed_img = heatmap * alpha + image
-    #superimposed_img = np.clip(superimposed_img, 0, 255).astype("uint8")
-    #superimposed_img = cv2.cvtColor(superimposed_img, cv2.COLOR_BGR2RGB)
-    #return array_to_img(superimposed_img)
-
 def heatmapArrayToHeatmapImg(heatmap, heatMapCorlorspace="cool"):
     jet = cm.get_cmap(heatMapCorlorspace)
     # print(jet)
